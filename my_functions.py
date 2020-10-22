@@ -121,7 +121,7 @@ def transform_data(df = None,
     # checks the data, loads default values, selects and afterwards drops treatments and outcome
 
     if not isinstance(df, pd.DataFrame):
-        df = load_data()
+        print("Wrong input")
 
     if not set(treatments).issubset(set(treatments_all)):
         print("Treatments should be a subset of treatments_all!")
