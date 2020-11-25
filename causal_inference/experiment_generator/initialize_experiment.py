@@ -7,6 +7,7 @@ Currently all reintubations are discarded by default, as it is hard to combine t
 imported from the Data Warehouse.
 """
 
+import math
 
 import pandas as pd
 import numpy as np
@@ -17,7 +18,7 @@ from data_warehouse_utils.dataloader import DataLoader
 def initialize_experiment(dl: DataLoader,
                           n_of_patients: int = None,
                           min_length_of_intubation: int = None,
-                          length_of_time_window: int = 2):
+                          length_of_time_window_hours: int = 2):
     '''Loads observations used in a causal experiment
 
     Parameters
@@ -30,7 +31,7 @@ def initialize_experiment(dl: DataLoader,
         a random subset of the data.
     min_length_of_intubation : int
         Patients intubated for a period shorter than 'min_lenght_of_intubation' hours are removed from the data.
-    length_of_time_window : int
+    length_of_time_window_hours : int
         Length of a time window
 
     Returns
@@ -42,24 +43,26 @@ def initialize_experiment(dl: DataLoader,
 
     df = _load_data_patients(dl = dl,
                             n_of_patients = n_of_patients,
-                            min_length_of_stay = min_length_of_intubation)
+                            min_length_of_stay_hours = min_length_of_intubation)
 
     df = _load_data_intubations(dl = dl,
                                df_patients = df,
                                min_length_of_intubation = min_length_of_intubation)
 
     df = _create_time_windows(df,
-                              length_of_window = length_of_time_window)
+                              length_of_time_window_hours = length_of_time_window_hours)
 
 
     return df
 
 
-def _load_data_patients(dl: DataLoader, n_of_patients = None, min_length_of_stay = None):
+def _load_data_patients(dl: DataLoader, n_of_patients = None, min_length_of_stay_hours = None):
     '''Loads patient data from the data warehouse.
 
     Each patient is already discharged from the ICU. This choice is hardcoded into the function. Note that readmitted
-    patients will have the same 'hash_patient_id'. Each readmission is a separate row.
+    patients will have the same 'hash_patient_id' and each readmission is a separate row.
+
+    To do: now both first stay and each readmission needs to be at least 'min_length_of_stay_hours' long.
 
     Parameters
     ----------
@@ -69,8 +72,8 @@ def _load_data_patients(dl: DataLoader, n_of_patients = None, min_length_of_stay
         Number of patients to choose from the full data set. In the Data Warehouse database each patients
         is associated with multiple parameters. For testing purposes ot is often more convenient to work with
         a random subset of the data.
-    min_length_of_stay : int
-        Patients with length of stay shorter than 'min_lenght_of_stay' hours are removed from the data.
+    min_length_of_stay_hours : int
+        Patients with length of stay shorter than 'min_lenght_of_stay_hours' are removed from the data.
 
     Returns
     -------
@@ -101,29 +104,41 @@ def _load_data_patients(dl: DataLoader, n_of_patients = None, min_length_of_stay
                                              ]
                                     )
 
-    # Drop short stays
+    # Drop short stays.
+    # To do: for the function to be correct this should be done as last
 
-    df_patients['length_of_stay'] = df_patients.discharge_timestamp - df_patients.admission_timestamp
-    df_patients['length_of_stay'] = df_patients.length_of_stay.astype('timedelta64[h]').astype('int')
+    df_patients['length_of_stay_hours'] = df_patients.discharge_timestamp - df_patients.admission_timestamp
+    df_patients['length_of_stay_hours'] = df_patients.length_of_stay_hours.astype('timedelta64[h]').astype('int')
 
-    if min_length_of_stay:
-        df_patients = df_patients[df_patients['length_of_stay'] >= min_length_of_stay]
+    if min_length_of_stay_hours:
+        df_patients = df_patients[df_patients['length_of_stay_hours'] >= min_length_of_stay_hours]
 
 
+    # Add a column indicating a readmission
 
-    # We make the hash_patient_id unique by aggregating. Add column for is_readmitted
+    df_patients.sort_values(by = ['hash_patient_id', 'admission_timestamp'], ascending = True)
 
-    max_n_of_readmissions = df_patients.hash_patient_id.value_counts()[0]
+    df_patients['is_readmitted'] = df_patients.duplicated(subset = ['hash_patient_id'], keep = 'first')
+
+
+    # Count number of readmissions
+
     n_of_readmission = df_patients.hash_patient_id.shape[0] - df_patients.hash_patient_id.nunique()
 
+
+    # To do: print strings nicely
+
     print("After dropping short stays, data loaded with", df_patients.hash_patient_id.nunique(), "patients and", n_of_readmission, "readmissions.")
+
+    df_patients.reset_index(drop=True, inplace=True)
 
     return df_patients
 
 def _load_data_intubations(dl: DataLoader, df_patients = None, min_length_of_intubation = None):
     '''Adds the intubation data to the data frame containing patients.
 
-    Currently does not support loading reintubations. Reintubations are removed from the data.
+    Currently does not support loading reintubations. Reintubations are removed from the data. The function first
+    drops reintubations and then short intubations (to be checked if this is the right order).
 
     Parameters
     ----------
@@ -145,8 +160,8 @@ def _load_data_intubations(dl: DataLoader, df_patients = None, min_length_of_int
     if not isinstance(df_patients, pd.DataFrame):
         df_patients = _load_data_patients(dl)
 
-    patients = df_patients.hash_patient_id.unique().tolist()
-    df_intubations = dl.get_intubations(patients = patients,
+    patients_id = df_patients.hash_patient_id.unique().tolist()
+    df_intubations = dl.get_intubations(patients = patients_id,
                                         columns=['hash_patient_id',
                                                  'start_intubation',
                                                  'end_intubation',
@@ -191,19 +206,19 @@ def _load_data_intubations(dl: DataLoader, df_patients = None, min_length_of_int
 
     # Transform the last column
 
-    df['intubated'] = df['intubation_is_correct'] == 1
+    df['is_intubated'] = df['intubation_is_correct'] == 1
     df.drop(['intubation_is_correct'], axis=1, inplace = True)
 
     return df
 
-def _create_time_windows(df, length_of_window = 1):
+def _create_time_windows(df, length_of_time_window_hours):
     '''Creates time windows for the combined data sets of patients and intubations.
 
     Parameters
     ----------
     df : pd.DataFrame
         Output of the function '_load_data_intubations'
-    length_of_window : int
+    length_of_time_window_hours : int
         Length of a time window
 
     Returns
@@ -214,29 +229,47 @@ def _create_time_windows(df, length_of_window = 1):
 
     '''
 
-    # to do: add all columns
-
     patients_multi = [(row.hash_patient_id, pd.DataFrame(
         {
-            'id': row.hash_patient_id,
-            'h_of_stay': [i for i in range(row.length_of_stay)],
-            'time_point_start': [row.admission_timestamp + pd.DateOffset(hours=i) for i in range(row.length_of_stay)],
-            'time_point_end': [row.admission_timestamp + pd.DateOffset(hours=i + 1) for i in range(row.length_of_stay)],
+            'hash_patient_id': row.hash_patient_id,
+            'h_of_stay': [i for i in range(0,
+                                           __round_up(length_of_time_window_hours, row.length_of_stay_hours),
+                                           length_of_time_window_hours)],
+            'time_window_start': [row.admission_timestamp +
+                                  pd.DateOffset(hours = hour)
+                                  for hour in range(0,
+                                                    __round_up(length_of_time_window_hours, row.length_of_stay_hours),
+                                                    length_of_time_window_hours)],
+            'time_window_end': [row.admission_timestamp +
+                                pd.DateOffset(hours = hour + length_of_time_window_hours)
+                                for hour in range(0,
+                                                  __round_up(length_of_time_window_hours, row.length_of_stay_hours),
+                                                  length_of_time_window_hours)],
+            'admission_timestamp': row.admission_timestamp,
+            'discharge_timestamp': row.discharge_timestamp,
+            'start_intubation': row.start_intubation,
+            'end_intubation': row.end_intubation,
+            'length_of_stay': row.length_of_stay_hours,
             'age': row.age,
             'bmi': row.bmi,
             'gender': row.gender,
-            'death': row.death_timestamp
+            'death': row.death_timestamp,
+            'is_intubated': row.is_intubated,
+            'is_readmitted': row.is_readmitted
         }
     )
                  ) for index, row in df.iterrows()]
 
 
     df_multi = pd.concat([patients_multi[i][1] for i in range(len(patients_multi))]).reset_index()
+    df_multi = df_multi.drop(['index'], axis=1)
 
-    # Thing to consider: maybe it will scale better if the output would be 'patients_multi'. Then 'add_parameter'
-    # could be run for each patient.
+    generator = patients_multi
 
-    return df_multi
+    return df_multi, generator
+
+def __add_parameter():
+    pass
 
 def add_parameter(dl, df, parameter_name):
     '''Adds the 'parameter_name' to the data frame
@@ -250,7 +283,7 @@ def add_parameter(dl, df, parameter_name):
         parameters = ['fio2'],
         from_timestamp = row.time_point_start,
         to_timestamp = row.time_point_end
-    ).groupby('hash_patient_id').numerical_value.mean()[0] for index,row in df.iterrows()]
+    ).groupby('hash_patient_id').numerical_value.mean(numeric_only = False)[0] for index,row in df.iterrows()]
 
     df[parameter_name] = parameter_values
 
@@ -261,3 +294,39 @@ def add_parameter(dl, df, parameter_name):
     #                                                  to_timestamp = x.time_point_end), axis=1)
 
     return df
+
+
+def get_proning(dl, df, min_length_of_proning_hours):
+    '''Adds columns related to proning do the data set
+
+    Takes a df with column 'hash_patient_id'
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Output of the function '_load_data_intubations'
+    length_of_time_window_hours : int
+        Length of a time window
+
+    Returns
+    -------
+    data_frame : pd.DataFrame
+        Data frame with added columns 'first_proning' and 'total length of proning'.
+
+    '''
+
+    measurements_range = dl.get_range_measurements(parameters=['position'],
+                                                   sub_parameters=['position_body'],
+                                                   # values=['prone'],
+                                                   columns=['hash_patient_id', 'start_timestamp', 'effective_value'])
+
+
+def __is_list_of_strings(lst):
+    '''Checks if the input is a list of string'''
+
+    return bool(lst) and not isinstance(lst, str) and all(isinstance(elem, str) for elem in lst)
+
+def __round_up(length_of_time_window_hours: int, length_of_stay_hours: int):
+    '''Rounds up 'length_of_stay_hours' to the nearest integer divisible by 'length_of_time_window_hours' '''
+    rounded_number = int(length_of_time_window_hours * math.ceil(length_of_stay_hours / length_of_time_window_hours ))
+    return rounded_number
