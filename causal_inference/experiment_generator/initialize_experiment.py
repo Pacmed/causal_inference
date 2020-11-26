@@ -25,14 +25,15 @@ def initialize_experiment(dl: DataLoader,
     ----------
     dl : DataLoader
         Class to load the data from the Data Warehouse database.
-    n_of_patients : int
+    n_of_patients : Optional[int]
         Number of patients to choose from all the patients. In the Data Warehouse database each patients
         is associated with multiple parameters. For testing purposes it is often more convenient to work with
         a random subset of the data.
-    min_length_of_intubation : int
+    min_length_of_intubation : Optional[int]
         Patients intubated for a period shorter than 'min_lenght_of_intubation' hours are removed from the data.
-    length_of_time_window_hours : int
-        Length of a time window
+    length_of_time_window_hours : Optional[int]
+        Length of a time window. Defines how often is a measurement registered for each patient in the data to be
+        created.
 
     Returns
     -------
@@ -59,7 +60,7 @@ def initialize_experiment(dl: DataLoader,
 def _load_data_patients(dl: DataLoader, n_of_patients = None, min_length_of_stay_hours = None):
     '''Loads patient data from the data warehouse.
 
-    Each patient is already discharged from the ICU. This choice is hardcoded into the function. Note that readmitted
+    Only patients that got already discharged from the ICU are recorded. This choice is hardcoded into the function. Note that readmitted
     patients will have the same 'hash_patient_id' and each readmission is a separate row.
 
     To do: now both first stay and each readmission needs to be at least 'min_length_of_stay_hours' long.
@@ -68,11 +69,11 @@ def _load_data_patients(dl: DataLoader, n_of_patients = None, min_length_of_stay
     ----------
     dl : DataLoader
         Class to load the data from each table in the Data Warehouse database.
-    n_of_patients : int
+    n_of_patients : Optional[int]
         Number of patients to choose from the full data set. In the Data Warehouse database each patients
         is associated with multiple parameters. For testing purposes ot is often more convenient to work with
         a random subset of the data.
-    min_length_of_stay_hours : int
+    min_length_of_stay_hours : Optional[int]
         Patients with length of stay shorter than 'min_lenght_of_stay_hours' are removed from the data.
 
     Returns
@@ -146,7 +147,7 @@ def _load_data_intubations(dl: DataLoader, df_patients = None, min_length_of_int
             Class to load the data from each table in the Data Warehouse database.
     df_patients : pd.DataFrame
             Output of the function '_load_data_patients'
-    min_length_of_intubation : int
+    min_length_of_intubation : Optional[int]
         Patients with length of intubation shorter than 'min_lenght_of_intubation' hours are removed from the data.
 
 
@@ -218,7 +219,7 @@ def _create_time_windows(df, length_of_time_window_hours):
     ----------
     df : pd.DataFrame
         Output of the function '_load_data_intubations'
-    length_of_time_window_hours : int
+    length_of_time_window_hours : Optional[int]
         Length of a time window
 
     Returns
@@ -305,7 +306,7 @@ def get_proning(dl, df, min_length_of_proning_hours):
     ----------
     df : pd.DataFrame
         Output of the function '_load_data_intubations'
-    length_of_time_window_hours : int
+    length_of_time_window_hours : Optional[int]
         Length of a time window
 
     Returns
