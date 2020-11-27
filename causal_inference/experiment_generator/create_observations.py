@@ -126,20 +126,17 @@ def _create_data_points_batch(dl, patient_id, compress, nearest):
         df = df_measurements[['hash_patient_id', 'rounded_timestamp']].drop_duplicates()
 
         df_fio2 = df_measurements.groupby(by='rounded_timestamp',
-                                      as_index=False,
-                                      dropna=False)['fio2'].mean()
+                                      as_index=False)['fio2'].mean()
 
         df = pd.merge(df, df_fio2, how='left', on='rounded_timestamp')
 
         df_po2 = df_measurements.groupby(by='rounded_timestamp',
-                                     as_index=False,
-                                     dropna=False)['po2_arterial'].mean()
+                                     as_index=False)['po2_arterial'].mean()
 
         df = pd.merge(df, df_po2, how='left', on='rounded_timestamp')
 
         df_peep = df_measurements.groupby(by='rounded_timestamp',
-                                      as_index=False,
-                                      dropna=False)['peep'].mean()
+                                      as_index=False)['peep'].mean()
 
         df = pd.merge(df, df_peep, how='left', on='rounded_timestamp')
 
