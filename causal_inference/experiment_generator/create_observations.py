@@ -102,7 +102,6 @@ def _create_data_points_batch(dl, patient_id, compress, nearest):
     if (~isinstance(df_measurements, pd.DataFrame)) | len(df_measurements.index) == 0:
         print("There are no observations for patient ", patient_id)
 
-
     # We first round (round down, if nearest = False, which is default) the timestamp to the nearest hour.
 
     df_measurements['rounded_timestamp'] = df_measurements['effective_timestamp']. \
@@ -117,37 +116,53 @@ def _create_data_points_batch(dl, patient_id, compress, nearest):
                                                      values='numerical_value')
     df_measurements = pd.DataFrame(df_measurements.to_records())
 
-    # We aggregate the data on 'rounded_timestamp'. This probably could be improved, but this way it is
-    # straightforward and easy to change.
+    # Check if all measurements have nonempty values
 
-    df = df_measurements[['hash_patient_id', 'rounded_timestamp']].drop_duplicates()
+    if (set(['peep', 'po2_arterial', 'fio2']).issubset(set(df_measurements.columns))):
 
-    df_fio2 = df_measurements.groupby(by='rounded_timestamp',
-                               as_index=False)['fio2'].mean()
+        # We aggregate the data on 'rounded_timestamp'. This probably could be improved, but this way it is
+        # straightforward and easy to change.
 
-    df = pd.merge(df, df_fio2, how='left', on='rounded_timestamp')
+        df = df_measurements[['hash_patient_id', 'rounded_timestamp']].drop_duplicates()
 
-    df_po2 = df_measurements.groupby(by='rounded_timestamp',
-                             as_index=False)['po2_arterial'].mean()
+        df_fio2 = df_measurements.groupby(by='rounded_timestamp',
+                                      as_index=False,
+                                      dropna=False)['fio2'].mean()
 
-    df = pd.merge(df, df_po2, how='left', on='rounded_timestamp')
+        df = pd.merge(df, df_fio2, how='left', on='rounded_timestamp')
 
-    df_peep = df_measurements.groupby(by='rounded_timestamp',
-                              as_index=False)['peep'].mean()
+        df_po2 = df_measurements.groupby(by='rounded_timestamp',
+                                     as_index=False,
+                                     dropna=False)['po2_arterial'].mean()
 
-    df = pd.merge(df, df_peep, how='left', on='rounded_timestamp')
+        df = pd.merge(df, df_po2, how='left', on='rounded_timestamp')
 
-    # We drop all measurements that are not data points (i.e. don't have all measurements)
-    df_droppped = df.dropna()
+        df_peep = df_measurements.groupby(by='rounded_timestamp',
+                                      as_index=False,
+                                      dropna=False)['peep'].mean()
 
-    print("We drop",
-          (len(df.index) - len(df_droppped.index))/len(df.index).round(2) * 100,
-          "% of all measurements.")
+        df = pd.merge(df, df_peep, how='left', on='rounded_timestamp')
 
-    if compress:
-        df_droppped = __compress(df_droppped)
+        # We drop all measurements that are not data points (i.e. don't have all measurements)
+        df_dropped = df.dropna()
 
-    return df_droppped
+        print(round((len(df.index) - len(df_droppped.index)) * 100/len(df.index)),
+          "% of all measurements were dropped.")
+
+    # Calculate pf_ratio
+
+        df_dropped['pf_ratio'] = df_dropped['po2_arterial'] / df_dropped['fio2']
+        df_dropped['pf_ratio'] = round(df_dropped['pf_ratio'] * 100)
+        df_dropped['pf_ratio'] = df_dropped['pf_ratio'].astype('int')
+
+        if compress:
+            df_dropped = __compress(df_dropped)
+
+    else:
+        print("No measurements to load.")
+        df_dropped = pd.DataFrame([])
+
+    return df_dropped
 
 
 def _get_sample_hash_patient_id(dl: DataLoader, n_of_samples: int = None):
