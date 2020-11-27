@@ -143,14 +143,14 @@ def _create_data_points_batch(dl, patient_id, compress, nearest):
         # We drop all measurements that are not data points (i.e. don't have all measurements)
         df_dropped = df.dropna()
 
-        print(round((len(df.index) - len(df_droppped.index)) * 100/len(df.index)),
+        print(round((len(df.index) - len(df_dropped.index)) * 100/len(df.index)),
           "% of all measurements were dropped.")
 
     # Calculate pf_ratio
 
-        df_dropped['pf_ratio'] = df_dropped['po2_arterial'] / df_dropped['fio2']
-        df_dropped['pf_ratio'] = round(df_dropped['pf_ratio'] * 100)
-        df_dropped['pf_ratio'] = df_dropped['pf_ratio'].astype('int')
+        df_dropped.loc[:, 'pf_ratio'] = df_dropped.loc[:, 'po2_arterial'] / df_dropped.loc[:, 'fio2']
+        df_dropped.loc[:, 'pf_ratio'] = round(df_dropped.loc[:, 'pf_ratio'] * 100)
+        df_dropped.loc[:, 'pf_ratio'] = df_dropped.loc[:, 'pf_ratio'].astype('int')
 
         if compress:
             df_dropped = __compress(df_dropped)
