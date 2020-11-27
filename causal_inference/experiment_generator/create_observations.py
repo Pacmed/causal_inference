@@ -7,10 +7,9 @@ The data contains rows loaded from the Single Timestamp table in the Data Wareho
 """
 
 import pandas as pd
-import numpy as np
 
-from datetime import datetime, timedelta
-from typing import Optional, List
+from datetime import timedelta
+from typing import Optional
 
 from data_warehouse_utils.dataloader import DataLoader
 
@@ -90,62 +89,65 @@ def _create_data_points_batch(dl, patient_id, compress, nearest):
 
     '''
 
-    df_blood_gas_measurements = dl.get_single_timestamp(patients = [patient_id],
-                                                        parameters = ['fio2',
-                                                                      'po2_arterial',
-                                                                      'peep'],
-                                                        columns = ['hash_patient_id',
-                                                                   'pacmed_name',
-                                                                   'numerical_value',
-                                                                   'effective_timestamp']
-                                                        )
+    df_measurements = dl.get_single_timestamp(patients = [patient_id],
+                                              parameters = ['fio2',
+                                                            'po2_arterial',
+                                                            'peep'],
+                                              columns = ['hash_patient_id',
+                                                         'pacmed_name',
+                                                         'numerical_value',
+                                                         'effective_timestamp']
+                                              )
 
-    if (~isinstance(df_blood_gas_measurements, pd.DataFrame)) | len(df_blood_gas_measurements.index) == 0:
+    if (~isinstance(df_measurements, pd.DataFrame)) | len(df_measurements.index) == 0:
         print("There are no observations for patient ", patient_id)
 
 
     # We first round (round down, if nearest = False, which is default) the timestamp to the nearest hour.
 
-    df_blood_gas_measurements['rounded_timestamp'] = df_blood_gas_measurements['effective_timestamp']. \
+    df_measurements['rounded_timestamp'] = df_measurements['effective_timestamp']. \
         map(lambda x: hour_rounder(x, nearest))
 
     # We create columns 'fio2', 'po2' and 'peep' by pivoting the df.
 
-    df_pivot = df_blood_gas_measurements.pivot_table(index=['hash_patient_id',
+    df_measurements = df_measurements.pivot_table(index=['hash_patient_id',
                                                             'rounded_timestamp',
                                                             'effective_timestamp'],
                                                      columns=['pacmed_name'],
                                                      values='numerical_value')
-    df_pivot = pd.DataFrame(df_pivot.to_records())
+    df_measurements = pd.DataFrame(df_measurements.to_records())
 
     # We aggregate the data on 'rounded_timestamp'. This probably could be improved, but this way it is
     # straightforward and easy to change.
 
-    df_key = df_pivot[['hash_patient_id', 'rounded_timestamp']].drop_duplicates()
+    df = df_measurements[['hash_patient_id', 'rounded_timestamp']].drop_duplicates()
 
-    df_fio2 = df_pivot.groupby(by='rounded_timestamp',
+    df_fio2 = df_measurements.groupby(by='rounded_timestamp',
                                as_index=False)['fio2'].mean()
 
-    df_key = pd.merge(df_key, df_fio2, how='left', on='rounded_timestamp')
+    df = pd.merge(df, df_fio2, how='left', on='rounded_timestamp')
 
-    df_po2 = df_pivot.groupby(by='rounded_timestamp',
+    df_po2 = df_measurements.groupby(by='rounded_timestamp',
                              as_index=False)['po2_arterial'].mean()
 
-    df_key = pd.merge(df_key, df_po2, how='left', on='rounded_timestamp')
+    df = pd.merge(df, df_po2, how='left', on='rounded_timestamp')
 
-    df_peep = df_pivot.groupby(by='rounded_timestamp',
+    df_peep = df_measurements.groupby(by='rounded_timestamp',
                               as_index=False)['peep'].mean()
 
-    df_key = pd.merge(df_key, df_peep, how='left', on='rounded_timestamp')
+    df = pd.merge(df, df_peep, how='left', on='rounded_timestamp')
 
     # We drop all measurements that are not data points (i.e. don't have all measurements)
+    df_droppped = df.dropna()
 
-    df_key = df_key.dropna()
+    print("We drop",
+          (len(df.index) - len(df_droppped.index))/len(df.index).round(2) * 100,
+          "% of all measurements.")
 
     if compress:
-        df_key = __compress(df_key)
+        df_droppped = __compress(df_droppped)
 
-    return df_key
+    return df_droppped
 
 
 def _get_sample_hash_patient_id(dl: DataLoader, n_of_samples: int = None):
