@@ -198,7 +198,7 @@ def ensure_correct_dtypes(df):
 
     df.loc[:, 'id'] = df['id'] = df['hash_patient_id'].astype('str') + str('_') + df['session_id'].astype('str')
     columns = ['id', 'hash_patient_id', 'start_timestamp', 'treated', 'duration_hours']
-    df = df.loc[columns]
+    df = df[columns]
 
     df.loc[:, 'start_timestamp'] = df.start_timestamp.astype('datetime64[ns]')
 
