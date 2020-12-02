@@ -158,23 +158,8 @@ def __create_data_points_batch(dl, patient_id, n_of_patients_all):
     return df
 
 
-def _get_sample_hash_patient_id(dl: DataLoader, n_of_samples: int = None):
-    if n_of_samples:
-        sample_hash_patient_id = dl.get_admissions(columns=['hash_patient_id'],
-                                                   discharged=True). \
-            hash_patient_id. \
-            unique(). \
-            sample(n_of_samples). \
-            to_list()
-    else:
-        sample_hash_patient_id = None
-
-    return sample_hash_patient_id
-
-
 def _get_hash_patient_id(dl: DataLoader):
-    hash_patient_id_all = dl.get_admissions(columns=['hash_patient_id'],
-                                            discharged=True). \
+    hash_patient_id_all = dl.get_patients(columns=['hash_patient_id']). \
         hash_patient_id. \
         unique(). \
         tolist()
