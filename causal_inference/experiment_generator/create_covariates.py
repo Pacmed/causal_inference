@@ -70,6 +70,25 @@ def add_covariates(dl: DataLoader,
                    covariates: Optional[List[str]] = None):
     """ Adds covariates to the DataFrame.
 
+    Parameters
+    ----------
+    dl : DataLoader
+        Class to load the data from the Data Warehouse database.
+    df : pd.DataFrame
+        Data skeleton with observations and treatment.
+    interval_start: Optional[int]
+        The difference in hours between the start of the interval in which we look at covariates' values and the start of
+        proning/supine session.
+    interval_end: Optional[int]
+        The difference in hours between the end of the interval in which we look at covariates' values and the start of
+        proning/supine session.
+    covariates: Optional[List[str]]
+        List of covariates to add. By default it loads all the covariates.
+
+    Returns
+    -------
+    data_frame : pd.DataFrame
+        Data frame with added column for each covariate.
     """
 
     if not covariates:
