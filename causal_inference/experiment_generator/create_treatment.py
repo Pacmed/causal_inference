@@ -10,7 +10,7 @@ import numpy as np
 from typing import Optional
 
 from data_warehouse_utils.dataloader import DataLoader
-from causal_inference.experiment_generator.create_observations_old import _get_hash_patient_id
+
 
 
 def get_proning_table(dl: DataLoader,
@@ -198,7 +198,7 @@ def ensure_correct_dtypes(df):
 
     df.loc[:, 'id'] = df['id'] = df['hash_patient_id'].astype('str') + str('_') + df['session_id'].astype('str')
     columns = ['id', 'hash_patient_id', 'start_timestamp', 'treated', 'duration_hours']
-    df = df[columns]
+    df = df.loc[columns]
 
     df.loc[:, 'start_timestamp'] = df.start_timestamp.astype('datetime64[ns]')
 

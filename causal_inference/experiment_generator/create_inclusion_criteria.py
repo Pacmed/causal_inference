@@ -5,8 +5,8 @@ from datetime import timedelta
 from typing import Optional
 
 from data_warehouse_utils.dataloader import DataLoader
-from causal_inference.experiment_generator.create_observations import _get_hash_patient_id
-from causal_inference.experiment_generator.create_observations import hour_rounder
+from causal_inference.experiment_generator.create_observations_old import _get_hash_patient_id
+from causal_inference.experiment_generator.create_observations_old import hour_rounder
 
 
 def get_inclusion_data(df_treatment, df_blood_gas):
