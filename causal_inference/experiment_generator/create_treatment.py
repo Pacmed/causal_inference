@@ -77,8 +77,6 @@ def get_proning_table_batch(dl: DataLoader,
 
     # Loads data from the warehouse
 
-    print(patient_id)
-
     df_position = dl.get_range_measurements(patients=[patient_id],
                                             parameters=['position'],
                                             sub_parameters=['position_body'],
@@ -165,7 +163,7 @@ def __proning_table_to_list_of_intervals(df):
     return list
 
 
-def add_treatment(df, duration):
+def add_treatment(df, duration = 0):
 
     df_control = df[df.effective_value == 'supine']
     df_control = df_control[df_control.duration_hours >= duration]
