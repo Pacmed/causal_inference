@@ -7,17 +7,15 @@
 import pandas as pd
 import numpy as np
 
-from datetime import timedelta
 from typing import Optional
 
 from data_warehouse_utils.dataloader import DataLoader
-from causal_inference.experiment_generator.create_observations import _get_hash_patient_id
-from causal_inference.experiment_generator.create_observations import hour_rounder
+from causal_inference.experiment_generator.create_observations_old import _get_hash_patient_id
 
 
 def get_proning_table(dl: DataLoader,
                       n_of_patients: str = None,
-                      min_length_of_session: Optional[int] = None):
+                      min_length_of_session: Optional[int] = 0):
     """Creates a DateFrame with unique sessions of proning and supine for all patients.
 
         Parameters
@@ -43,9 +41,10 @@ def get_proning_table(dl: DataLoader,
     if n_of_patients:
         patient_id_list = np.random.choice(patient_id_list, n_of_patients, replace=False)
 
-    df = [get_proning_table_batch(dl,
-                                  patient_id,
-                                  min_length_of_session) for _, patient_id in enumerate(patient_id_list)]
+    df = [_get_proning_table_batch(dl=dl,
+                                   patient_id=patient_id,
+                                   min_length_of_session=min_length_of_session
+                                   ) for _, patient_id in enumerate(patient_id_list)]
 
     df_concat = pd.concat(df)
 
@@ -54,9 +53,9 @@ def get_proning_table(dl: DataLoader,
     return df_concat
 
 
-def get_proning_table_batch(dl: DataLoader,
-                            patient_id: str,
-                            min_length_of_session: Optional[int] = None):
+def _get_proning_table_batch(dl: DataLoader,
+                             patient_id: str,
+                             min_length_of_session: Optional[int] = None):
     '''Creates a DateFrame with unique sessions of proning and supine for a selected patient.
 
     Parameters
@@ -147,30 +146,32 @@ def get_proning_table_batch(dl: DataLoader,
         df_groupby['duration_hours'] = df_groupby['end_timestamp'] - df_groupby['start_timestamp']
         df_groupby['duration_hours'] = df_groupby['duration_hours'].astype('timedelta64[h]').astype('int')
 
-        if min_length_of_session:
+        if min_length_of_session > 0:
             df_groupby = df_groupby[df_groupby.duration_hours >= min_length_of_session]
 
     return df_groupby
 
 
-def __proning_table_to_list_of_intervals(df):
-    df = df[df.effective_value == 'prone']
+def add_treatment(df, max_length_of_session: Optional[int] = 96):
+    """Adds 'treated' column to the proning table.
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Proning table to be transformed.
+    min_length_of_session: Optional[int]
+            Proning and supine sessions shorter than 'min_length_of_session' are dropped.
 
-    list = [(df.loc[id, 'start_timestamp'],
-             df.loc[id, 'end_timestamp'],
-             df.loc[id, 'duration_hours']) for id, _ in df.iterrows()]
-
-    return list
-
-
-def add_treatment(df, duration = 0):
+    Returns
+    -------
+    data_frame : pd.DataFrame
+        Data frame wit added treatment column."""
 
     df_control = df[df.effective_value == 'supine']
-    df_control = df_control[df_control.duration_hours >= duration]
+    df_control = df_control[df_control.duration_hours <= max_length_of_session]
     df_control['treated'] = False
 
     df_treated = df[df.effective_value == 'prone']
-    df_treated = df_treated[df_treated.duration_hours >= duration]
+    df_treated = df_treated[df_treated.duration_hours <= max_length_of_session]
     df_treated['treated'] = True
 
     print("We load",len(df_control.index),"control and", len(df_treated.index), "treated observations.")
@@ -178,3 +179,33 @@ def add_treatment(df, duration = 0):
     df = pd.concat([df_treated, df_control])
 
     return df
+
+
+def ensure_correct_dtypes(df):
+    """Ensures the DataFrame is in the right format.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame to be transformed.
+
+    Returns
+    -------
+    df : pd.DataFrame
+        Transformed DataFrame.
+
+    """
+
+    df.loc[:, 'id'] = df['id'] = df['hash_patient_id'].astype('str') + str('_') + df['session_id'].astype('str')
+    columns = ['id', 'hash_patient_id', 'start_timestamp', 'treated', 'duration_hours']
+    df = df[columns]
+
+    df.loc[:, 'start_timestamp'] = df.start_timestamp.astype('datetime64[ns]')
+
+    return df
+
+
+def create_control_observations():
+    """To do: function that creates correct control group."""
+    pass
+
