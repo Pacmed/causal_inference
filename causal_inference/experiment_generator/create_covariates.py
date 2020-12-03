@@ -27,7 +27,7 @@ LAB_VALUES = ['c_reactive_protein',
               'd_dimer',
               'fibrinogen',
               'alanine_transaminase',
-              'aspartate_transaminase'
+              'aspartate_transaminase',
               'lactate_dehydrogenase',
               'albumin',
               'creatine_kinase',
@@ -36,13 +36,13 @@ LAB_VALUES = ['c_reactive_protein',
               'bilirubin_direct',
               'bilirubin_total']
 
-BLOOD_GAS = ['pco2_arterial',
-             'po2_arterial',
-             'ph_arterial',
-             'bicarbonate_arterial',
-             'lactate_arterial']
+BLOOD_GAS = ['pco2_arterial']
 
-CENTRAL_LINE = ['so2_central_venous']
+CENTRAL_LINE = ['so2_arterial',
+                'so2_unspecified',
+                'so2_central_venous',
+                'so2_mixed_venous',
+                'so2_venous']
 
 VITAL_SIGNS = ['heart_rate',
                'arterial_blood_pressure_mean',
@@ -56,8 +56,9 @@ VENTILATOR_VALUES = ['peep',
                      'inspiratory_expiratory_ratio',
                      'respiratory_rate_measured',
                      'respiratory_rate_set',
-                     'respiratory_rate_measured_ventilator'
-                     'lung_compliance',
+                     'respiratory_rate_measured_ventilator',
+                     'lung_compliance_dynamic',
+                     'lung_compliance_static',
                      'driving_pressure',
                      'plateau_pressure',
                      'peak_pressure']
@@ -77,8 +78,8 @@ def add_covariates(dl: DataLoader,
     df : pd.DataFrame
         Data skeleton with observations and treatment.
     interval_start: Optional[int]
-        The difference in hours between the start of the interval in which we look at covariates' values and the start of
-        proning/supine session.
+        The difference in hours between the start of the interval in which we look at covariates' values and the start
+         of proning/supine session.
     interval_end: Optional[int]
         The difference in hours between the end of the interval in which we look at covariates' values and the start of
         proning/supine session.
@@ -92,7 +93,7 @@ def add_covariates(dl: DataLoader,
     """
 
     if not covariates:
-        covariates = BMI + LAB_VALUES + BLOOD_GAS + CENTRAL_LINE + VITAL_SIGNS + VENTILATOR_VALUES
+        covariates = LAB_VALUES + BLOOD_GAS + CENTRAL_LINE + VITAL_SIGNS + VENTILATOR_VALUES
 
     df_measurements = [_get_measurements(dl=dl,
                                          hash_session_id=row.id,
@@ -102,13 +103,15 @@ def add_covariates(dl: DataLoader,
                                          interval_start=interval_start,
                                          interval_end=interval_end) for idx, row in df.iterrows()]
 
-    df_measurements = pd.concat(df_measurements)
+    df_timestamps = pd.concat(list(list(zip(*df_measurements))[1]))
+    #df_timestamps = df_timestamps.astype('timedelta64[h]').astype('int')
 
+    df_measurements = pd.concat(list(list(zip(*df_measurements))[0]))
     df_measurements.reset_index(inplace=True)
     df_measurements.rename(columns={"index": "id"}, inplace=True)
     df = pd.merge(df, df_measurements, how='left', on='id')
 
-    return df
+    return df, df_timestamps
 
 
 def _get_measurements(dl,
@@ -119,8 +122,8 @@ def _get_measurements(dl,
                       interval_start,
                       interval_end
                       ):
-    start = start_timestamp - timedelta(hours=interval_start)
-    end = start_timestamp - timedelta(hours=interval_end)
+    interval_start = start_timestamp - timedelta(hours=interval_start)
+    interval_end = start_timestamp - timedelta(hours=interval_end)
 
     measurements = dl.get_single_timestamp(patients=[patient_id],
                                            parameters=covariates,
@@ -128,20 +131,30 @@ def _get_measurements(dl,
                                                     'pacmed_subname',
                                                     'numerical_value',
                                                     'effective_timestamp'],
-                                           from_timestamp=start,
-                                           to_timestamp=end)
-    columns = covariates
-    df_measurement = pd.DataFrame([], columns=columns)
-    for _, parameter in enumerate(covariates):
-        parameter_name = '{}'.format(parameter)
-        value = measurements[measurements.pacmed_name == parameter_name]
-        value = value[value.effective_timestamp == value.effective_timestamp.max()]
+                                           from_timestamp=interval_start,
+                                           to_timestamp=interval_end)
 
-        if len(value.index) > 0:
-            value = value.numerical_value.iloc[0]
+    df_covariates = pd.DataFrame([], columns=covariates)
+    df_timestamps = pd.DataFrame([], columns=covariates)
+
+    for _, covariate in enumerate(covariates):
+
+        covariate_name = '{}'.format(covariate)
+        covariate_values = measurements[measurements.pacmed_name == covariate_name]
+
+        if len(covariate_values.index) > 0:
+            latest_timestamp = covariate_values.effective_timestamp.max()
+            timestamp_diff = (start_timestamp - latest_timestamp).total_seconds()
+
+            covariate_values = covariate_values[covariate_values.effective_timestamp == latest_timestamp]
+            covariate_values = covariate_values.numerical_value.iloc[0]
+
         else:
-            value = np.NaN
+            timestamp_diff = pd.Timedelta('nat')
+            covariate_values = np.NaN
 
-        df_measurement.loc[hash_session_id, parameter_name] = value
+        df_covariates.loc[hash_session_id, covariate_name] = covariate_values
+        df_timestamps.loc[hash_session_id, covariate_name] = timestamp_diff
 
-    return df_measurement
+    return df_covariates, df_timestamps
+
