@@ -179,11 +179,11 @@ def add_treatment(df, max_length_of_session: Optional[int] = 96):
     df_control = df[df.effective_value == 'supine']
     df_control = df_control[df_control.duration_hours <= max_length_of_session]
     # create_control_observations()
-    df_control['treated'] = False
+    df_control.loc[:, 'treated'] = False
 
     df_treated = df[df.effective_value == 'prone']
     df_treated = df_treated[df_treated.duration_hours <= max_length_of_session]
-    df_treated['treated'] = True
+    df_treated.loc[:, 'treated'] = True
 
     print("We load", len(df_control.index), "control and", len(df_treated.index), "treated observations.")
 
@@ -207,8 +207,15 @@ def ensure_correct_dtypes(df):
 
     """
 
-    df.loc[:, 'id'] = df['id'] = df['hash_patient_id'].astype('str') + str('_') + df['session_id'].astype('str')
-    columns = ['id', 'hash_patient_id', 'start_timestamp', 'treated', 'duration_hours', 'pacmed_origin_hospital']
+    df.loc[:, 'id'] = df['hash_patient_id'].astype('str') + str('_') + df['session_id'].astype('str')
+    columns = ['id',
+               'hash_patient_id',
+               'start_timestamp',
+               'end_timestamp',
+               'treated',
+               'duration_hours',
+               'pacmed_origin_hospital']
+
     df_new = df[columns]
 
     df_new.loc[:, 'start_timestamp'] = df_new.start_timestamp.astype('datetime64[ns]')
