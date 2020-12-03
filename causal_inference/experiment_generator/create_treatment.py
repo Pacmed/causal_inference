@@ -12,7 +12,6 @@ from typing import Optional
 from data_warehouse_utils.dataloader import DataLoader
 
 
-
 def get_proning_table(dl: DataLoader,
                       n_of_patients: str = None,
                       min_length_of_session: Optional[int] = 0):
@@ -56,7 +55,7 @@ def get_proning_table(dl: DataLoader,
 def _get_proning_table_batch(dl: DataLoader,
                              patient_id: str,
                              min_length_of_session: Optional[int] = None):
-    '''Creates a DateFrame with unique sessions of proning and supine for a selected patient.
+    """Creates a DateFrame with unique sessions of proning and supine for a selected patient.
 
     Parameters
     ----------
@@ -72,7 +71,7 @@ def _get_proning_table_batch(dl: DataLoader,
     data_frame : pd.DataFrame
         Data frame in which each row indicates a proning or supine session.
 
-    '''
+    """
 
     # Loads data from the warehouse
 
@@ -83,7 +82,8 @@ def _get_proning_table_batch(dl: DataLoader,
                                                      'start_timestamp',
                                                      'end_timestamp',
                                                      'effective_value',
-                                                     'is_correct_unit_yn']
+                                                     'is_correct_unit_yn',
+                                                     'pacmed_origin_hospital']
                                             )
     if len(df_position.index) == 0:
         df_groupby = pd.DataFrame([])
@@ -136,7 +136,8 @@ def _get_proning_table_batch(dl: DataLoader,
 
         df_groupby = df_position.groupby(['hash_patient_id', 'effective_value', 'session_id'],
                                          as_index=False)['is_correct_unit_yn',
-                                                         'proning_canceled'].last()
+                                                         'proning_canceled',
+                                                         'pacmed_origin_hospital'].last()
 
         df_groupby = pd.merge(df_groupby, df_groupby_start, how='left', on='session_id')
         df_groupby = pd.merge(df_groupby, df_groupby_end, how='left', on='session_id')
@@ -152,13 +153,22 @@ def _get_proning_table_batch(dl: DataLoader,
     return df_groupby
 
 
+def _get_hash_patient_id(dl: DataLoader):
+    hash_patient_id_all = dl.get_patients(columns=['hash_patient_id']). \
+        hash_patient_id. \
+        unique(). \
+        tolist()
+
+    return hash_patient_id_all
+
+
 def add_treatment(df, max_length_of_session: Optional[int] = 96):
     """Adds 'treated' column to the proning table.
     Parameters
     ----------
     df : pd.DataFrame
         Proning table to be transformed.
-    min_length_of_session: Optional[int]
+    max_length_of_session: Optional[int]
             Proning and supine sessions shorter than 'min_length_of_session' are dropped.
 
     Returns
@@ -168,13 +178,14 @@ def add_treatment(df, max_length_of_session: Optional[int] = 96):
 
     df_control = df[df.effective_value == 'supine']
     df_control = df_control[df_control.duration_hours <= max_length_of_session]
+    # create_control_observations()
     df_control['treated'] = False
 
     df_treated = df[df.effective_value == 'prone']
     df_treated = df_treated[df_treated.duration_hours <= max_length_of_session]
     df_treated['treated'] = True
 
-    print("We load",len(df_control.index),"control and", len(df_treated.index), "treated observations.")
+    print("We load", len(df_control.index), "control and", len(df_treated.index), "treated observations.")
 
     df = pd.concat([df_treated, df_control])
 
@@ -197,15 +208,14 @@ def ensure_correct_dtypes(df):
     """
 
     df.loc[:, 'id'] = df['id'] = df['hash_patient_id'].astype('str') + str('_') + df['session_id'].astype('str')
-    columns = ['id', 'hash_patient_id', 'start_timestamp', 'treated', 'duration_hours']
-    df = df[columns]
+    columns = ['id', 'hash_patient_id', 'start_timestamp', 'treated', 'duration_hours', 'pacmed_origin_hospital']
+    df_new = df[columns]
 
-    df.loc[:, 'start_timestamp'] = df.start_timestamp.astype('datetime64[ns]')
+    df_new.loc[:, 'start_timestamp'] = df_new.start_timestamp.astype('datetime64[ns]')
 
-    return df
+    return df_new
 
 
 def create_control_observations():
     """To do: function that creates correct control group."""
     pass
-
