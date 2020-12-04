@@ -223,6 +223,10 @@ def ensure_correct_dtypes(df):
     return df_new
 
 
-def create_control_observations():
+def create_control_observations(df: pd.DataFrame):
     """To do: function that creates correct control group."""
+    [foo(row) for idx, row in df.iterrows()]
     pass
+
+def foo(row):
+    row.duration_hours

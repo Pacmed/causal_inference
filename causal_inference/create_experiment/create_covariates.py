@@ -38,11 +38,7 @@ LAB_VALUES = ['c_reactive_protein',
 
 BLOOD_GAS = ['pco2_arterial']
 
-CENTRAL_LINE = ['so2_arterial',
-                'so2_unspecified',
-                'so2_central_venous',
-                'so2_mixed_venous',
-                'so2_venous']
+CENTRAL_LINE = ['so2_arterial']
 
 VITAL_SIGNS = ['heart_rate',
                'arterial_blood_pressure_mean',
