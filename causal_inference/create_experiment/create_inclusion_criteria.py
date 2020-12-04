@@ -3,7 +3,7 @@ import numpy as np
 
 from datetime import timedelta
 
-from old.create_observations_old import hour_rounder
+from causal_inference.old.create_observations_old import hour_rounder
 
 
 def get_inclusion_data(df_treatment, df_blood_gas):

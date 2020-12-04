@@ -6,9 +6,9 @@ from typing import Optional
 
 from data_warehouse_utils.dataloader import DataLoader
 
-from causal_inference.experiment_generator.create_treatment import get_proning_table
-from causal_inference.experiment_generator.create_treatment import add_treatment
-from causal_inference.experiment_generator.create_treatment import ensure_correct_dtypes
+from causal_inference.create_experiment.create_treatment import get_proning_table
+from causal_inference.create_experiment.create_treatment import add_treatment
+from causal_inference.create_experiment.create_treatment import ensure_correct_dtypes
 
 
 def create_observations(dl: DataLoader,

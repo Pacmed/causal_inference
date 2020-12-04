@@ -207,8 +207,10 @@ def ensure_correct_dtypes(df):
 
     """
 
-    df.loc[:, 'id'] = df.loc[:, 'hash_patient_id'].astype('str') + str('_') + df.loc[:, 'session_id'].astype('str')
-    columns = ['id',
+    df.loc[:, 'hash_session_id'] = df.loc[:, 'hash_patient_id'].astype('str') +\
+                                   str('_') +\
+                                   df.loc[:, 'session_id'].astype('str')
+    columns = ['hash_session_id',
                'hash_patient_id',
                'start_timestamp',
                'end_timestamp',
