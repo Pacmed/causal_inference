@@ -178,7 +178,7 @@ def add_treatment(df, max_length_of_session: Optional[int] = 96):
 
     df_control = df[df.effective_value == 'supine']
     df_control = df_control[df_control.duration_hours <= max_length_of_session]
-    # create_control_observations()
+    # create_control_observations(dl, df_control, min_length_of_a_session)
     df_control.loc[:, 'treated'] = False
 
     df_treated = df[df.effective_value == 'prone']
@@ -224,11 +224,6 @@ def ensure_correct_dtypes(df):
 
     return df_new
 
-
-def create_control_observations(df: pd.DataFrame):
-    """To do: function that creates correct control group."""
-    [foo(row) for idx, row in df.iterrows()]
-    pass
 
 def foo(row):
     row.duration_hours
