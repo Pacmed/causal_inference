@@ -11,29 +11,11 @@ INCLUSION_PARAMETERS = ['fio2', 'peep', 'po2_arterial']
 
 COLUMNS_ORDERED = ['hash_session_id',
                    'hash_patient_id',
-                   'pacmed_origin_hospital'
                    'start_timestamp',
                    'end_timestamp',
-                   'duration_hours',
                    'treated',
-                   'age_first',
-                   'bmi_first',
-                   'gender_first',
-                   'death_timestamp_max',
-                   'outcome',
-                   'mortality',
-                   'icu_mortality',
-                   'nice_chron_dialysis',
-                   'nice_chr_renal_insuf',
-                   'nice_cirrhosis',
-                   'nice_copd',
-                   'nice_diabetes',
-                   'nice_hem_malign',
-                   'nice_imm_insuf',
-                   'nice_neoplasm',
-                   'nice_resp_insuf',
-                   'nice_cardio_vasc_insuf',
-                   'has_died_during_session',
+                   'duration_hours',
+                   'pacmed_origin_hospital',
                    'fio2',
                    'peep',
                    'po2_arterial']
@@ -42,30 +24,20 @@ COLUMNS_ORDERED = ['hash_session_id',
 def create_control_observations(dl: DataLoader,
                                 df: pd.DataFrame,
                                 min_length_of_a_session: Optional[int] = 8):
-    df_short = df.loc[(df.duration_hours < min_length_of_a_session)]
-
-    df_single = df.loc[(df.duration_hours == min_length_of_a_session)]
-
-    df = df.loc[(df.duration_hours > min_length_of_a_session)]
-
     df_new = [split_control_observation(dl=dl,
-                                        session_id=row.id,
+                                        session_id=row.hash_session_id,
                                         patient_id=row.hash_patient_id,
                                         start_timestamp=row.start_timestamp,
                                         end_timestamp=row.end_timestamp,
                                         duration_hours=row.duration_hours,
+                                        pacmed_origin_hospital=row.pacmed_origin_hospital,
                                         min_length_of_a_session=min_length_of_a_session) for idx, row in df.iterrows()]
 
-    df = df.drop(columns=['duration_hours', 'start_timestamp', 'end_timestamp'])
+    if len(df_new) > 0:
+        df_new = pd.concat(df_new)
+        df_new = df_new.reindex(columns=COLUMNS_ORDERED)
 
-    df_new = pd.concat(df_new)
-
-    if "session_patient_id" not in df.columns:
-        df = df.rename(columns=dict(id="hash_session_id"))
-
-    df_new = pd.merge(df_new, df, how='left', on='hash_session_id')
-
-    df_new = df_new.reindex(columns=COLUMNS_ORDERED)
+    print("We create additional", len(df_new.index), "control observations.")
 
     return df_new
 
@@ -76,9 +48,10 @@ def split_control_observation(dl,
                               start_timestamp,
                               end_timestamp,
                               duration_hours,
+                              pacmed_origin_hospital,
                               min_length_of_a_session):
     # Get measurements from the Data Warehouse
-
+    print(patient_id)
     start = start_timestamp
     end = start_timestamp + timedelta(hours=duration_hours) - timedelta(hours=min_length_of_a_session)
 
@@ -93,23 +66,43 @@ def split_control_observation(dl,
 
     df_measurements['start_timestamp'] = pd.to_datetime(df_measurements['effective_timestamp']).dt.floor('60min')
 
+    df_time = pd.pivot_table(df_measurements,
+                             values='effective_timestamp',
+                             index=['start_timestamp'],
+                             columns='pacmed_name',
+                             aggfunc=aggfunc_last).reset_index()
+
     df_measurements = pd.pivot_table(df_measurements,
                                      values='numerical_value',
                                      index=['start_timestamp'],
                                      columns='pacmed_name',
                                      aggfunc=aggfunc_last).reset_index()
 
-    # Drop measurements that happened less than one hour after the start
-
-    # df_measurements = df_measurements.loc[(df_measurements.rounded_timestamp > df_measurements.start_timestamp)]
+    # 'start_timestamp' is defined as the timestamp of the last measurement taken for the observation
+    if 'start_timestamp' in df_time.columns:
+        df_time.drop(columns=['start_timestamp'], inplace=True)
+        df_time.loc[:, 'start_timestamp'] = df_time.max(axis=1)
+        df_measurements.loc[:, 'start_timestamp'] = df_time.loc[:, 'start_timestamp']
 
     df_measurements.dropna(axis=0, how="any", inplace=True)
+    df_measurements.reset_index(inplace=True, drop=True)
 
-    df_measurements['hash_session_id'] = session_id
-    df_measurements['end_timestamp'] = end_timestamp
+    if len(df_measurements.index) == 0:
+        df_measurements = pd.DataFrame([])
+    else:
+        df_measurements.loc[:, 'hash_patient_id'] = patient_id
+        df_measurements.loc[:, 'treated'] = False
+        df_measurements.loc[:, 'pacmed_origin_hospital'] = pacmed_origin_hospital
+        df_measurements.loc[:, 'end_timestamp'] = end_timestamp
 
-    df_measurements['duration_hours'] = df_measurements['end_timestamp'] - df_measurements['start_timestamp']
-    df_measurements['duration_hours'] = df_measurements['duration_hours'].astype('timedelta64[h]').astype('int')
+        df_measurements.loc[:, 'duration_hours'] = df_measurements['end_timestamp'] - df_measurements['start_timestamp']
+        df_measurements.loc[:, 'duration_hours'] = df_measurements['duration_hours'].astype('timedelta64[h]')
+        df_measurements.loc[:, 'duration_hours'] = df_measurements['duration_hours'].astype('int')
+        df_measurements.loc[:, 'hash_session_id'] = session_id
+        df_measurements.loc[:, 'index'] = df_measurements.index
+        df_measurements.loc[:, 'hash_session_id'] = df_measurements.loc[:, 'hash_session_id'].astype('str') + \
+                                                    str('_') + \
+                                                    df_measurements.loc[:, 'index'].astype('str')
 
     return df_measurements
 

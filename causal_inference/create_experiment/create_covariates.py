@@ -92,7 +92,7 @@ def add_covariates(dl: DataLoader,
         covariates = LAB_VALUES + BLOOD_GAS + CENTRAL_LINE + VITAL_SIGNS + VENTILATOR_VALUES
 
     df_measurements = [_get_measurements(dl=dl,
-                                         hash_session_id=row.id,
+                                         session_id=row.hash_session_id,
                                          patient_id=row.hash_patient_id,
                                          start_timestamp=row.start_timestamp,
                                          covariates=covariates,
@@ -104,14 +104,14 @@ def add_covariates(dl: DataLoader,
 
     df_measurements = pd.concat(list(list(zip(*df_measurements))[0]))
     df_measurements.reset_index(inplace=True)
-    df_measurements.rename(columns={"index": "id"}, inplace=True)
-    df = pd.merge(df, df_measurements, how='left', on='id')
+    df_measurements.rename(columns={"index": "hash_session_id"}, inplace=True)
+    df = pd.merge(df, df_measurements, how='left', on='hash_session_id')
 
     return df, df_timestamps
 
 
 def _get_measurements(dl,
-                      hash_session_id,
+                      session_id,
                       patient_id,
                       start_timestamp,
                       covariates,
@@ -149,8 +149,9 @@ def _get_measurements(dl,
             timestamp_diff = pd.Timedelta('nat')
             covariate_values = np.NaN
 
-        df_covariates.loc[hash_session_id, covariate_name] = covariate_values
-        df_timestamps.loc[hash_session_id, covariate_name] = timestamp_diff
+        df_covariates.loc[session_id, covariate_name] = covariate_values
+        df_timestamps.loc[session_id, covariate_name] = timestamp_diff
 
     return df_covariates, df_timestamps
+
 
