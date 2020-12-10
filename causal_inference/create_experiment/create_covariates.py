@@ -36,9 +36,15 @@ LAB_VALUES = ['c_reactive_protein',
               'bilirubin_direct',
               'bilirubin_total']
 
-BLOOD_GAS = ['pco2_arterial']
+BLOOD_GAS = ['pco2_arterial',
+             'po2_arterial',
+             'bicarbonate_arterial',
+             'ph_arterial',
+             'lactate_arterial']
 
-CENTRAL_LINE = ['so2_arterial']
+CENTRAL_LINE = ['so2_central_venous']
+
+SATURATION = ['o2_saturation']
 
 VITAL_SIGNS = ['heart_rate',
                'arterial_blood_pressure_mean',
@@ -89,7 +95,7 @@ def add_covariates(dl: DataLoader,
     """
 
     if not covariates:
-        covariates = LAB_VALUES + BLOOD_GAS + CENTRAL_LINE + VITAL_SIGNS + VENTILATOR_VALUES
+        covariates = LAB_VALUES + BLOOD_GAS + CENTRAL_LINE + SATURATION +VITAL_SIGNS + VENTILATOR_VALUES
 
     df_measurements = [_get_measurements(dl=dl,
                                          session_id=row.hash_session_id,
@@ -118,6 +124,7 @@ def _get_measurements(dl,
                       interval_start,
                       interval_end
                       ):
+
     interval_start = start_timestamp - timedelta(hours=interval_start)
     interval_end = start_timestamp - timedelta(hours=interval_end)
 
