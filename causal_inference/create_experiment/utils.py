@@ -49,12 +49,14 @@ def groupby_measurements_outcome(hash_session_id, interval_end, end_timestamp, d
         df.loc[hash_session_id, measurement_name] = measurement_value
         df.loc[hash_session_id, measurement_name + str('_diff')] = latest_timestamp_diff
 
-    if ('fio2' in df.columns) & ('po2_arterial' in df.columns):
-        df_nan = df.fio2.isna() | df.po2_arterial.isna()
-        df['pf_ratio'] = np.NaN
-        df.loc[~df_nan, 'pf_ratio'] = df.loc[~df_nan, 'po2_arterial'] / df.loc[~df_nan, 'fio2']
-        df.loc[~df_nan, 'pf_ratio'] = df.loc[~df_nan, 'pf_ratio'].map(lambda x: round(x * 100))
-        df.loc[~df_nan, 'pf_ratio_diff'] = df.loc[~df_nan, ('po2_arterial_diff', 'fio2_diff')].min(axis=1)
+    df = add_pf_ratio(df)
+
+    df['pf_ratio_diff'] = pd.Timedelta('nat')
+
+    if ('fio2_diff' in df.columns) & ('po2_arterial_diff' in df.columns):
+        df_not_null = ~((df['fio2_diff'].isnull()) | (df['po2_arterial_diff'].isnull()))
+        df.loc[df_not_null, 'pf_ratio_diff'] = df.loc[df_not_null, ('po2_arterial_diff', 'fio2_diff')].\
+            min(axis=1, skipna=True, numeric_only=False)
 
     else:
         df = pd.DataFrame([], columns=['pf_ratio', 'pf_ratio_diff'])
@@ -65,5 +67,17 @@ def groupby_measurements_outcome(hash_session_id, interval_end, end_timestamp, d
     df.rename(columns={"pf_ratio": outcome_name,
                        "pf_ratio_diff": outcome_name + str('_time_until_interval_end')},
               inplace=True)
+
+    return df
+
+
+def add_pf_ratio(df):
+
+    df['pf_ratio'] = np.NaN
+
+    if ('fio2' in df.columns) & ('po2_arterial' in df.columns):
+        df_nan = (df.fio2.isna()) | (df.po2_arterial.isna())
+        df.loc[~df_nan, 'pf_ratio'] = df.loc[~df_nan, 'po2_arterial'] / df.loc[~df_nan, 'fio2']
+        df.loc[~df_nan, 'pf_ratio'] = df.loc[~df_nan, 'pf_ratio'].map(lambda x: round(x * 100))
 
     return df

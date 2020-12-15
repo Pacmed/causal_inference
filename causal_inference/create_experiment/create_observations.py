@@ -1,17 +1,28 @@
-"""Initializes a data skeleton with each observation as proning or supine session."""
+"""Creates observations for the purpose of a causal inference experiment.
+
+This module initializes a data skeleton with each observation as a unique proning or supine session.
+
+Each observation contains all the inclusion criteria: 'po2_arterial', 'fio2', 'peep'.
+"""
 
 import pandas as pd
+import numpy as np
 
 from typing import Optional
 
 from data_warehouse_utils.dataloader import DataLoader
 
-from causal_inference.create_experiment.create_treatment import get_proning_table
+from causal_inference.create_experiment.create_treatment import get_observations_all
 from causal_inference.create_experiment.create_treatment import add_treatment
 from causal_inference.create_experiment.create_control import create_control_observations
 from causal_inference.create_experiment.create_covariates import add_covariates
+from causal_inference.create_experiment.utils import add_pf_ratio
 
-COLUMNS_ORDERED = ['hash_session_id',
+INCLUSION_PARAMETERS = ['fio2',
+                        'peep',
+                        'po2_arterial']
+
+COLUMNS = ['hash_session_id',
                    'hash_patient_id',
                    'pacmed_origin_hospital'
                    'start_timestamp',
@@ -35,21 +46,17 @@ COLUMNS_ORDERED = ['hash_session_id',
                    'nice_neoplasm',
                    'nice_resp_insuf',
                    'nice_cardio_vasc_insuf',
-                   'has_died_during_session',
-                   'fio2',
-                   'peep',
-                   'po2_arterial']
+                   'has_died_during_session']
 
-INCLUSION_PARAMETERS = ['fio2',
-                        'peep',
-                        'po2_arterial']
+COLUMNS_ORDERED = COLUMNS + INCLUSION_PARAMETERS
 
 
 def create_observations(dl: DataLoader,
                         n_of_patients: Optional[int] = None,
                         min_length_of_session: Optional[int] = 8,
-                        max_length_of_proning: Optional[int] = 96):
-    """ Creates observations fot the causal inference experiment, where each row is a proning or supine session.
+                        max_length_of_proning: Optional[int] = 96,
+                        inclusion_interval: Optional[int] = 4):
+    """ Creates observations fot the causal inference experiment, where each row is a unique proning or supine session.
 
     Parameters
     ----------
@@ -60,33 +67,37 @@ def create_observations(dl: DataLoader,
         work with a proper subset of the data. This parameter specifies the size of the subset.
         If None, then all patients from the Patients table are loaded.
     min_length_of_session: Optional[int]
-        Proning and supine sessions shorter than 'min_length_of_session' won't be loaded.
+        Supine sessions shorter than 'min_length_of_session' won't be used to create artificial supine session.
     max_length_of_proning: Optional[int]
         Proning sessions longer than 'max_length_of_session' won't be loaded.
+    inclusion_interval: Optional[int]
 
     Returns
     -------
     data_frame : pd.DataFrame
-        Data frame in which each row indicates a proning or supine session.
+        Data frame in which each row indicates a unique proning or supine session.
     """
 
-    df = get_proning_table(dl, n_of_patients=n_of_patients)
+    df = get_observations_all(dl, n_of_patients=n_of_patients)
 
     if len(df.index) == 0:
-        print("No sessions to load! Try other 'hash_patient_id.")
+
+        print("No sessions to load!")
+
     else:
+
         df = add_treatment(df, max_length_of_proning=max_length_of_proning)
 
-        control_to_split = (df.treated == False) & (df.duration_hours > min_length_of_session)
+        control_to_split = (~df.treated) & (df.duration_hours > min_length_of_session)
         df_control_to_split = df.loc[control_to_split]
 
-        df, _ = add_covariates(dl, df, 3, 0, INCLUSION_PARAMETERS)
+        df, _ = add_covariates(dl, df, inclusion_interval, 0, INCLUSION_PARAMETERS)
         df.loc[:, 'artificial_session'] = False
 
         if len(df_control_to_split.index) > 0:
             df_control_to_split = create_control_observations(dl, df_control_to_split, min_length_of_session)
             if len(df_control_to_split.index) > 0:
-                df_control_to_split.loc[:, ['artificial_session']] = True
+                df_control_to_split['artificial_session'] = True
                 df = pd.concat([df, df_control_to_split])
             else:
                 print("Additional control sessions are empty.")
@@ -94,6 +105,14 @@ def create_observations(dl: DataLoader,
             print("No additional control sessions to create.")
 
     df = add_patients_data(dl=dl, df=df)
+
+    df = add_pf_ratio(df)
+
+    inclusion_name = '_inclusion' + '_{}h'.format(inclusion_interval)
+    inclusion_parameters = INCLUSION_PARAMETERS + ['pf_ratio']
+
+    for _, inclusion_parameter in enumerate(inclusion_parameters):
+        df = df.rename(columns={'{}'.format(inclusion_parameter):'{}'.format(inclusion_parameter) + inclusion_name})
 
     return df
 

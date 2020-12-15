@@ -51,7 +51,6 @@ def split_control_observation(dl,
                               pacmed_origin_hospital,
                               min_length_of_a_session):
     # Get measurements from the Data Warehouse
-    print(patient_id)
     start = start_timestamp
     end = start_timestamp + timedelta(hours=duration_hours) - timedelta(hours=min_length_of_a_session)
 

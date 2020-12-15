@@ -70,7 +70,8 @@ def add_covariates(dl: DataLoader,
                    df: pd.DataFrame,
                    interval_start: Optional[int] = 12,
                    interval_end: Optional[int] = 0,
-                   covariates: Optional[List[str]] = None):
+                   covariates: Optional[List[str]] = None,
+                   covariate_type: Optional[str] = None):
     """ Adds covariates to the DataFrame.
 
     Parameters
@@ -87,6 +88,10 @@ def add_covariates(dl: DataLoader,
         proning/supine session.
     covariates: Optional[List[str]]
         List of covariates to add. By default it loads all the covariates.
+    covariate_type: Optional[str]
+        If specified, loads a group of covariates. All possible values: 'bmi',
+         'lab_values', 'blood_gas', 'central_line', 'saturation', 'vital_signs', 'ventilator_values'. Useful if different
+         covariate types have different interval starts/ interval ends.
 
     Returns
     -------
@@ -94,8 +99,29 @@ def add_covariates(dl: DataLoader,
         Data frame with added column for each covariate.
     """
 
+    if covariate_type == 'bmi':
+        covariates = BMI
+
+    if covariate_type == 'lab_values':
+        covariates = LAB_VALUES
+
+    if covariate_type == 'blood_gas':
+        covariates = BLOOD_GAS
+
+    if covariate_type == 'central_line':
+        covariates = CENTRAL_LINE
+
+    if covariate_type == 'saturation':
+        covariates = SATURATION
+
+    if covariate_type == 'vital_signs':
+        covariates = VITAL_SIGNS
+
+    if covariate_type == 'ventilator_values':
+        covariates = VENTILATOR_VALUES
+
     if not covariates:
-        covariates = LAB_VALUES + BLOOD_GAS + CENTRAL_LINE + SATURATION +VITAL_SIGNS + VENTILATOR_VALUES
+        covariates = LAB_VALUES + BLOOD_GAS + CENTRAL_LINE + SATURATION + VITAL_SIGNS + VENTILATOR_VALUES
 
     df_measurements = [_get_measurements(dl=dl,
                                          session_id=row.hash_session_id,
@@ -106,11 +132,11 @@ def add_covariates(dl: DataLoader,
                                          interval_end=interval_end) for idx, row in df.iterrows()]
 
     df_timestamps = pd.concat(list(list(zip(*df_measurements))[1]))
-    #df_timestamps = df_timestamps.astype('timedelta64[h]').astype('int')
-
     df_measurements = pd.concat(list(list(zip(*df_measurements))[0]))
+
     df_measurements.reset_index(inplace=True)
     df_measurements.rename(columns={"index": "hash_session_id"}, inplace=True)
+
     df = pd.merge(df, df_measurements, how='left', on='hash_session_id')
 
     return df, df_timestamps

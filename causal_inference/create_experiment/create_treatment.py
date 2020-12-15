@@ -12,7 +12,7 @@ from typing import Optional
 from data_warehouse_utils.dataloader import DataLoader
 
 
-def get_proning_table(dl: DataLoader,
+def get_observations_all(dl: DataLoader,
                       n_of_patients: str = None):
     """Creates a DateFrame with unique sessions of proning and supine for all patients.
 
@@ -39,8 +39,8 @@ def get_proning_table(dl: DataLoader,
 
     print("Data for", len(patient_id_list), "patients were loaded.")
 
-    df = [_get_proning_table_batch(dl=dl,
-                                   patient_id=patient_id) for _, patient_id in enumerate(patient_id_list)]
+    df = [_get_observations_patient(dl=dl,
+                                    patient_id=patient_id) for _, patient_id in enumerate(patient_id_list)]
 
     df_concat = pd.concat(df)
 
@@ -49,8 +49,8 @@ def get_proning_table(dl: DataLoader,
     return df_concat
 
 
-def _get_proning_table_batch(dl: DataLoader,
-                             patient_id: str):
+def _get_observations_patient(dl: DataLoader,
+                              patient_id: str):
     """Creates a DateFrame with unique sessions of proning and supine for a selected patient.
 
     Parameters
@@ -226,9 +226,6 @@ def ensure_correct_dtypes(df):
     df_new = df.loc[:, columns]
 
     df_new.loc[:, 'start_timestamp'] = df_new.start_timestamp.astype('datetime64[ns]')
+    df.loc[:, 'treated'] = df['treated'].astype('bool')
 
     return df_new
-
-
-def foo(row):
-    row.duration_hours
