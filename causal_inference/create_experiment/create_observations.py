@@ -91,7 +91,7 @@ def create_observations(dl: DataLoader,
         control_to_split = (~df.treated) & (df.duration_hours > min_length_of_session)
         df_control_to_split = df.loc[control_to_split]
 
-        df, _ = add_covariates(dl, df, inclusion_interval, 0, INCLUSION_PARAMETERS)
+        df, _ = add_covariates(dl, df, inclusion_interval, 0, INCLUSION_PARAMETERS, shift_forward=True)
         df.loc[:, 'artificial_session'] = False
 
         if len(df_control_to_split.index) > 0:
@@ -122,10 +122,10 @@ def add_patients_data(dl, df):
     df_patients = dl.get_patients()
 
     patients_variables = ['hash_patient_id',
-                          'age_first',
-                          'bmi_first',
-                          'gender_first',
-                          'death_timestamp_max',
+                          'age',
+                          'bmi',
+                          'gender',
+                          'death_timestamp',
                           'outcome',
                           'mortality',
                           'icu_mortality',
@@ -145,9 +145,9 @@ def add_patients_data(dl, df):
     if len(df) > 0:
         df = pd.merge(df, df_patients, how='left', on='hash_patient_id')
         df['has_died_during_session'] = False
-        died_during_session = ~df.death_timestamp_max.isna() & \
-                              (df.start_timestamp <= df.death_timestamp_max) & \
-                              (df.death_timestamp_max <= df.end_timestamp)
+        died_during_session = ~df.death_timestamp.isna() & \
+                              (df.start_timestamp <= df.death_timestamp) & \
+                              (df.death_timestamp <= df.end_timestamp)
         df.loc[died_during_session, 'has_died_during_session'] = True
 
     return df

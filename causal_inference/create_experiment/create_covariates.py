@@ -37,12 +37,17 @@ LAB_VALUES = ['c_reactive_protein',
               'bilirubin_total']
 
 BLOOD_GAS = ['pco2_arterial',
+             'pco2_unspecified',
              'po2_arterial',
+             'po2_unspecified',
              'bicarbonate_arterial',
+             'bicarbonate_unspecified'
              'ph_arterial',
-             'lactate_arterial']
+             'ph_unspecified'
+             'lactate_arterial',
+             'lactate_unspecified']
 
-CENTRAL_LINE = ['so2_central_venous']
+CENTRAL_LINE = ['so2_venous']
 
 SATURATION = ['o2_saturation']
 
@@ -71,7 +76,8 @@ def add_covariates(dl: DataLoader,
                    interval_start: Optional[int] = 12,
                    interval_end: Optional[int] = 0,
                    covariates: Optional[List[str]] = None,
-                   covariate_type: Optional[str] = None):
+                   covariate_type: Optional[str] = None,
+                   shift_forward: Optional[bool] = False):
     """ Adds covariates to the DataFrame.
 
     Parameters
@@ -92,6 +98,7 @@ def add_covariates(dl: DataLoader,
         If specified, loads a group of covariates. All possible values: 'bmi',
          'lab_values', 'blood_gas', 'central_line', 'saturation', 'vital_signs', 'ventilator_values'. Useful if different
          covariate types have different interval starts/ interval ends.
+    shift_forward: Optional[bool]
 
     Returns
     -------
@@ -129,7 +136,8 @@ def add_covariates(dl: DataLoader,
                                          start_timestamp=row.start_timestamp,
                                          covariates=covariates,
                                          interval_start=interval_start,
-                                         interval_end=interval_end) for idx, row in df.iterrows()]
+                                         interval_end=interval_end,
+                                         shift_forward=shift_forward) for idx, row in df.iterrows()]
 
     df_timestamps = pd.concat(list(list(zip(*df_measurements))[1]))
     df_measurements = pd.concat(list(list(zip(*df_measurements))[0]))
@@ -148,11 +156,14 @@ def _get_measurements(dl,
                       start_timestamp,
                       covariates,
                       interval_start,
-                      interval_end
+                      interval_end,
+                      shift_forward
                       ):
 
     interval_start = start_timestamp - timedelta(hours=interval_start)
     interval_end = start_timestamp - timedelta(hours=interval_end)
+    if shift_forward:
+        interval_end + timedelta(minutes=30)
 
     measurements = dl.get_single_timestamp(patients=[patient_id],
                                            parameters=covariates,
@@ -170,6 +181,7 @@ def _get_measurements(dl,
 
         covariate_name = '{}'.format(covariate)
         covariate_values = measurements[measurements.pacmed_name == covariate_name]
+        covariate_values = covariate_values[covariate_values.effective_timestamp <= start_timestamp]
 
         if len(covariate_values.index) > 0:
             latest_timestamp = covariate_values.effective_timestamp.max()
@@ -179,8 +191,18 @@ def _get_measurements(dl,
             covariate_values = covariate_values.numerical_value.iloc[0]
 
         else:
-            timestamp_diff = pd.Timedelta('nat')
-            covariate_values = np.NaN
+            covariate_values = measurements[measurements.pacmed_name == covariate_name]
+
+            if len(covariate_values.index) > 0:
+                first_timestamp = covariate_values.effective_timestamp.min()
+                timestamp_diff = (start_timestamp - first_timestamp).total_seconds()
+
+                covariate_values = covariate_values[covariate_values.effective_timestamp == first_timestamp]
+                covariate_values = covariate_values.numerical_value.iloc[0]
+
+            else:
+                timestamp_diff = pd.Timedelta('nat')
+                covariate_values = np.NaN
 
         df_covariates.loc[session_id, covariate_name] = covariate_values
         df_timestamps.loc[session_id, covariate_name] = timestamp_diff
