@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 import datetime
 
+from typing import List
+
 
 def groupby_measurements(hash_session_id,
                          interval_end,
@@ -75,9 +77,41 @@ def add_pf_ratio(df):
 
     df['pf_ratio'] = np.NaN
 
-    if ('fio2' in df.columns) & ('po2_arterial' in df.columns):
-        df_nan = (df.fio2.isna()) | (df.po2_arterial.isna())
-        df.loc[~df_nan, 'pf_ratio'] = df.loc[~df_nan, 'po2_arterial'] / df.loc[~df_nan, 'fio2']
+    if ('fio2' in df.columns) & ('po2' in df.columns):
+        df_nan = (df.fio2.isna()) | (df.po2.isna())
+        df.loc[~df_nan, 'pf_ratio'] = df.loc[~df_nan, 'po2'] / df.loc[~df_nan, 'fio2']
         df.loc[~df_nan, 'pf_ratio'] = df.loc[~df_nan, 'pf_ratio'].map(lambda x: round(x * 100))
 
     return df
+
+
+def _optimize_floats(df: pd.DataFrame) -> pd.DataFrame:
+    floats = df.select_dtypes(include=['float64']).columns.tolist()
+    df[floats] = df[floats].apply(pd.to_numeric, downcast='float')
+
+    return df
+
+
+def _optimize_ints(df: pd.DataFrame) -> pd.DataFrame:
+    ints = df.select_dtypes(include=['int64']).columns.tolist()
+    df[ints] = df[ints].apply(pd.to_numeric, downcast='integer')
+
+    return df
+
+
+def _optimize_objects(df: pd.DataFrame, datetime_features: List[str]) -> pd.DataFrame:
+    for col in df.select_dtypes(include=['object']):
+        if col not in datetime_features:
+            num_unique_values = len(df[col].unique())
+            num_total_values = len(df[col])
+            if float(num_unique_values) / num_total_values < 0.5:
+                df[col] = df[col].astype('category')
+        else:
+            df[col] = pd.to_datetime(df[col])
+    return df
+
+
+def optimize_dtypes(df: pd.DataFrame, datetime_features: List[str] = None):
+    if not datetime_features:
+        datetime_features = []
+    return _optimize_floats(_optimize_ints(_optimize_objects(df, datetime_features)))

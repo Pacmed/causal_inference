@@ -127,6 +127,9 @@ def add_covariates(dl: DataLoader,
     if covariate_type == 'ventilator_values':
         covariates = VENTILATOR_VALUES
 
+    if covariate_type == 'forward_fill_8h':
+        covariates = BLOOD_GAS + CENTRAL_LINE + SATURATION + VITAL_SIGNS + VENTILATOR_VALUES
+
     if not covariates:
         covariates = LAB_VALUES + BLOOD_GAS + CENTRAL_LINE + SATURATION + VITAL_SIGNS + VENTILATOR_VALUES
 
@@ -174,6 +177,18 @@ def _get_measurements(dl,
                                            from_timestamp=interval_start,
                                            to_timestamp=interval_end)
 
+    if set(['po2_arterial']).issubset(set(covariates)):
+        if len(measurements[measurements.pacmed_name == 'po2_arterial'].index) > 0:
+            measurements.loc[measurements.pacmed_name == 'po2_arterial', 'pacmed_name'] = 'po2'
+    if set(['po2_unspecified']).issubset(set(covariates)):
+        if len(measurements[measurements.pacmed_name == 'po2_unspecified'].index) > 0:
+            measurements.loc[measurements.pacmed_name == 'po2_unspecified', 'pacmed_name'] = 'po2'
+
+    # rename the covariates
+    covariates = [covariate.replace('po2_arterial', 'po2') for covariate in covariates]
+    covariates = [covariate.replace('po2_unspecified', 'po2') for covariate in covariates]
+    covariates = list(dict.fromkeys(covariates))
+
     df_covariates = pd.DataFrame([], columns=covariates)
     df_timestamps = pd.DataFrame([], columns=covariates)
 
@@ -193,7 +208,7 @@ def _get_measurements(dl,
         else:
             covariate_values = measurements[measurements.pacmed_name == covariate_name]
 
-            if len(covariate_values.index) > 0:
+            if (len(covariate_values.index) > 0) & shift_forward:
                 first_timestamp = covariate_values.effective_timestamp.min()
                 timestamp_diff = (start_timestamp - first_timestamp).total_seconds()
 

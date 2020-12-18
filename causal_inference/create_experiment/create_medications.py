@@ -8,7 +8,7 @@ from typing import Optional, List
 from data_warehouse_utils.dataloader import DataLoader
 
 
-def get_medications(dl, df):
+def get_medications(dl: DataLoader, df):
 
     df_medications = dl.get_medications(columns=['hash_patient_id',
                                                  'pacmed_name',
