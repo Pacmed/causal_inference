@@ -76,6 +76,7 @@ def create_observations(dl: DataLoader,
     max_length_of_proning: Optional[int]
         Proning sessions longer than 'max_length_of_session' won't be loaded.
     inclusion_interval: Optional[int]
+        Forward-fill value in hours.
 
     Returns
     -------

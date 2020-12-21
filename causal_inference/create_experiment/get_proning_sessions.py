@@ -16,6 +16,7 @@ from causal_inference.create_experiment.create_control import create_control_obs
 from causal_inference.create_experiment.create_outcome import add_outcome
 from causal_inference.create_experiment.create_medications import get_medications
 from causal_inference.create_experiment.utils import optimize_dtypes
+from causal_inference.create_experiment.create_outcome import get_pf_ratio_as_outcome
 
 
 class UseCaseLoader(DataLoader):
@@ -25,9 +26,10 @@ class UseCaseLoader(DataLoader):
 
         self.details = None
 
-    def get_causal_experiment(self, n_of_patients=None):
+    def get_causal_experiment(self, n_of_patients=None, inclusion_forward_fill_hours=8):
 
-        df = self.get_proning_sessions(n_of_patients=n_of_patients)
+        df = self.get_proning_sessions(n_of_patients=n_of_patients,
+                                       inclusion_forward_fill_hours=inclusion_forward_fill_hours)
         df = UseCaseLoader.apply_inclusion_criteria(df)
         df = self.add_bmi(df)
         df = self.add_lab_values(df)
@@ -36,7 +38,10 @@ class UseCaseLoader(DataLoader):
 
         return df
 
-    def get_proning_sessions(self, n_of_patients=None, drop_missing=True, inclusion_forward_fill_hours=8):
+    def get_proning_sessions(self,
+                             n_of_patients=None,
+                             drop_missing=True,
+                             inclusion_forward_fill_hours=None):
 
         df = create_observations(dl=self, n_of_patients=n_of_patients, inclusion_interval=inclusion_forward_fill_hours)
         print("Data loaded with {} unique proning/supine sessions".format(len(df.index)))
@@ -99,6 +104,35 @@ class UseCaseLoader(DataLoader):
     def add_medications(self, df):
         return get_medications(self, df)
 
+    def add_outcomes(self, df, first_outcome_hours, last_outcome_hours, df_measurements = None):
+
+        if not isinstance(df_measurements, pd.DataFrame):
+            print("Loading measurement data.")
+            OUTCOMES = ['po2_arterial', 'po2_unspecified', 'fio2']
+            PATIENTS = df.hash_patient_id.tolist()
+            COLUMNS = ['hash_patient_id', 'pacmed_name', 'numerical_value', 'effective_timestamp']
+            START = df.start_timestamp.min()
+            END = df.end_timestamp.max()
+
+            df_measurements = self.get_single_timestamp(patients=PATIENTS,
+                                                        parameters=OUTCOMES,
+                                                        columns=COLUMNS,
+                                                        from_timestamp=START,
+                                                        to_timestamp=END)
+
+        if 'pacmed_name' in df_measurements.columns:
+            measurement_names = df_measurements.pacmed_name.unique().tolist()
+            if 'fio2' in measurement_names:
+                if ('po2_arterial' in measurement_names) | ('po2_unspecified' in measurement_names):
+                    pf_ratio = [get_pf_ratio_as_outcome(row,
+                                                        df_measurements,
+                                                        first_outcome_hours,
+                                                        last_outcome_hours) for row in df.itertuples()]
+                    outcome_name = 'pf_ratio_{}h_outcome'.format(first_outcome_hours)
+                    df[outcome_name] = pf_ratio
+
+        return df
+
     @staticmethod
     def apply_inclusion_criteria(df, max_pf_ratio=150, min_peep=5, min_fio2=0.6):
 
@@ -115,3 +149,4 @@ class UseCaseLoader(DataLoader):
         df = df.loc[df[fio2[0]] >= min_fio2]
 
         return df
+

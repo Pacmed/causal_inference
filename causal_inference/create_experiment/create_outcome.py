@@ -3,6 +3,10 @@
 import pandas as pd
 import numpy as np
 
+
+import warnings
+import functools
+
 from datetime import timedelta, date
 from typing import Optional, List
 from data_warehouse_utils.dataloader import DataLoader
@@ -89,3 +93,32 @@ def _get_outcome(dl,
                               method='outcome')
 
     return df
+
+
+def get_pf_ratio_as_outcome(row, df, first_outcome_hours, last_outcome_hours, method ='last'):
+    # Select measurements
+    patient_id = row.hash_patient_id
+    start_outcome = row.start_timestamp + timedelta(hours=first_outcome_hours)
+    end_outcome = start_outcome + timedelta(hours=last_outcome_hours)
+    end_session = row.end_timestamp
+
+    df = df[df.hash_patient_id == patient_id]
+    df = df[df.effective_timestamp >= start_outcome]
+    df = df[df.effective_timestamp <= end_outcome]
+    df = df[df.effective_timestamp <= end_session]
+
+    df.loc[df.pacmed_name == 'po2_unspecified', 'pacmed_name'] = 'po2_arterial'
+
+    po2 = df[df.pacmed_name == 'po2_arterial']
+    fio2 = df[df.pacmed_name == 'fio2']
+
+    if (len(po2.index) > 0) & (len(fio2.index) > 0):
+        po2 = po2.iloc[-1]
+        fio2 = fio2.iloc[-1]
+        po2 = po2['numerical_value']
+        fio2 = fio2['numerical_value']
+        pf_ratio = round((po2 / fio2) * 100)
+    else:
+        pf_ratio = np.NaN
+
+    return pf_ratio

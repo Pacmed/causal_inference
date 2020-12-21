@@ -41,9 +41,9 @@ BLOOD_GAS = ['pco2_arterial',
              'po2_arterial',
              'po2_unspecified',
              'bicarbonate_arterial',
-             'bicarbonate_unspecified'
+             'bicarbonate_unspecified',
              'ph_arterial',
-             'ph_unspecified'
+             'ph_unspecified',
              'lactate_arterial',
              'lactate_unspecified']
 
