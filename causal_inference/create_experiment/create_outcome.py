@@ -96,6 +96,7 @@ def _get_outcome(dl,
 
 
 def get_pf_ratio_as_outcome(row, df, first_outcome_hours, last_outcome_hours, method ='last'):
+
     # Select measurements
     patient_id = row.hash_patient_id
     start_outcome = row.start_timestamp + timedelta(hours=first_outcome_hours)

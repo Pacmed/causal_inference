@@ -83,13 +83,13 @@ class UseCaseLoader(DataLoader):
         df, _ = add_covariates(self, df, forward_fill_value_hours, 0, covariate_type='bmi', shift_forward=True)
 
         if 'body_mass_index' in df.columns:
-            n_of_bmi = len(df.loc[df.bmi.isna(), 'bmi'])
             df.loc[df.bmi.isna(),'bmi'] = df.loc[df.bmi.isna(), 'body_mass_index']
             df.drop(columns=['body_mass_index'], inplace=True)
-            n_of_new_bmi = len(df.loc[df.bmi.isna(), 'bmi'])
-            if n_of_bmi >= n_of_new_bmi:
-                print("Not new BMI not loaded!")
 
+        return df
+
+    def add_cvvh(self, df):
+        df, _ = add_covariates(self, df, 8, 0, covariate_type='cvvh', shift_forward=True)
         return df
 
     def add_lab_values(self, df):

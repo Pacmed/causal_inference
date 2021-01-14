@@ -132,7 +132,7 @@ def _get_proning_data_batch(dl: DataLoader,
 
 
 def _get_hash_patient_id(dl: DataLoader):
-    hash_patient_id_all = dl.get_patients(columns=['hash_patient_id']). \
+    hash_patient_id_all = dl.get_patients(). \
         hash_patient_id. \
         unique(). \
         tolist()

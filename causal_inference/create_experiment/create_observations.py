@@ -135,7 +135,6 @@ def create_observations(dl: DataLoader,
 
 def add_patients_data(dl, df):
     df_patients = dl.get_patients()
-
     patients_variables = ['hash_patient_id',
                           'age',
                           'bmi',

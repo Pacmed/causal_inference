@@ -44,10 +44,18 @@ BLOOD_GAS = ['pco2_arterial',
              'bicarbonate_unspecified',
              'ph_arterial',
              'ph_unspecified',
+             'ph_central_venous',
+             'ph_mixed_venous',
+             'ph_venous',
              'lactate_arterial',
-             'lactate_unspecified']
+             'lactate_blood',
+             'lactate_unspecified',
+             'lactate_mixed_venous',
+             'lactate_venous'
+             ]
 
-CENTRAL_LINE = ['so2_venous']
+
+CENTRAL_LINE = ['so2_central_venous']
 
 SATURATION = ['o2_saturation']
 
@@ -107,7 +115,7 @@ def add_covariates(dl: DataLoader,
     """
 
     if covariate_type == 'bmi':
-        covariates = BMI
+        covariates = BMI + ['sofa_score']
 
     if covariate_type == 'lab_values':
         covariates = LAB_VALUES
@@ -129,6 +137,9 @@ def add_covariates(dl: DataLoader,
 
     if covariate_type == 'forward_fill_8h':
         covariates = BLOOD_GAS + CENTRAL_LINE + SATURATION + VITAL_SIGNS + VENTILATOR_VALUES
+
+    if covariate_type == 'cvvh':
+        covariates = ['cvvh_blood_flow', 'cvvhd_blood_flow', 'aki']
 
     if not covariates:
         covariates = LAB_VALUES + BLOOD_GAS + CENTRAL_LINE + SATURATION + VITAL_SIGNS + VENTILATOR_VALUES
