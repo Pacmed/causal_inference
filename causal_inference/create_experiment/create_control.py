@@ -75,7 +75,11 @@ def _split_control_observation(dl,
             df_measurements.loc[df_measurements.pacmed_name == 'po2_unspecified', 'pacmed_name'] = 'po2'
 
     # pivot measurements on rounded hours
+    # this creates problems when loading covariates.
+    # E.g. We record both fio2, po_2 arterial in a single rounded hour.
+    #      We take the last value of both and the last timestamp.
     df_measurements['start_timestamp'] = pd.to_datetime(df_measurements['effective_timestamp']).dt.floor('60min')
+
 
     df_time = pd.pivot_table(df_measurements,
                              values='effective_timestamp', # stores the timestamp of each measurement

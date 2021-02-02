@@ -132,7 +132,7 @@ class PropensityModel(object):
         return ate_per_stratum
 
     def est_treatment_effect(self):
-        self.causal_model.est_via_ols()
+        self.causal_model.est_via_ols(adj=2)
         self.causal_model.est_via_weighting()
         self.causal_model.est_via_blocking()
         self.causal_model.est_via_matching(bias_adj=True, weights='maha')

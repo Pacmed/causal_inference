@@ -1,10 +1,11 @@
+""" Module for extracting observational data set from the Data Warehouse. """
+
 from numpy import median
 
 import os, sys, random
 
 import pandas as pd
 import numpy as np
-import swifter
 
 from datetime import timedelta, date
 from importlib import reload
@@ -13,30 +14,76 @@ from data_warehouse_utils.dataloader import DataLoader
 from causal_inference.create_experiment.create_observations import create_observations
 from causal_inference.create_experiment.create_covariates import add_covariates
 from causal_inference.create_experiment.create_control import create_control_observations
-from causal_inference.create_experiment.create_outcome import add_outcome
+from causal_inference.create_experiment.create_outcome import add_outcomes
 from causal_inference.create_experiment.create_medications import get_medications
 from causal_inference.create_experiment.utils import optimize_dtypes
-from causal_inference.create_experiment.create_outcome import get_pf_ratio_as_outcome
+from causal_inference.create_experiment.create_outcome_old import get_pf_ratio_as_outcome
 
 
 class UseCaseLoader(DataLoader):
+    """
+    A class used to create the observational data set.
+    ...
+    Attributes
+    ----------
 
+    Methods
+    -------
+    get_causal_experiment(self, n_of_patients=None, inclusion_forward_fill_hours=8)
+       Loads the observational data with default forward-fill for blood gas measurements and ventilator settings.
+       The data set is contains only observations included in the study and loads default outcomes.
+
+    """
     def __init__(self):
         super().__init__()
 
         self.details = None
 
     def get_causal_experiment(self, n_of_patients=None, inclusion_forward_fill_hours=8):
+        """
+        Function creates the observational data set. It creates proning/ supine sessions, applies inclusion
+        criteria and for the included observations loads the default covariates. Outcomes need to be loaded
+        separately
+        """
 
+        # Creating observations
         df = self.get_proning_sessions(n_of_patients=n_of_patients,
                                        inclusion_forward_fill_hours=inclusion_forward_fill_hours)
         df = UseCaseLoader.apply_inclusion_criteria(df)
+
+        # Adding covariates
         df = self.add_bmi(df)
         df = self.add_lab_values(df)
         df = self.add_covariates(df)
         df = self.add_medications(df)
 
         return df
+
+    def get_pf_measurements(self, df, sample=None):
+
+        parameters = ['po2_arterial',
+                      'po2_unspecified',
+                      'fio2',
+                      'pao2_over_fio2',
+                      'po2_unspecified_over_fio2']
+
+        if sample:
+            patients = df.hash_patient_id.sample(5).tolist()
+        else:
+            patients = df.hash_patient_id.tolist()
+
+        columns = ['hash_patient_id', 'pacmed_name', 'pacmed_subname', 'numerical_value', 'effective_timestamp']
+        start = df.start_timestamp.min() - timedelta(hours=8)
+        end = df.end_timestamp.max()
+
+        df_pf_measurements = self.get_single_timestamp(patients=patients,
+                                                       parameters=parameters,
+                                                       columns=columns,
+                                                       from_timestamp=start,
+                                                       to_timestamp=end)
+
+        return df_pf_measurements
+
 
     def get_proning_sessions(self,
                              n_of_patients=None,
@@ -104,37 +151,16 @@ class UseCaseLoader(DataLoader):
     def add_medications(self, df):
         return get_medications(self, df)
 
-    def add_outcomes(self, df, first_outcome_hours, last_outcome_hours, df_measurements = None):
+    def add_covariate_single(self, df, covariates):
+        return add_covariates(self, df=df, interval_start=8, interval_end=0, covariates=covariates, shift_forward=True)
 
-        if not isinstance(df_measurements, pd.DataFrame):
-            print("Loading measurement data.")
-            OUTCOMES = ['po2_arterial', 'po2_unspecified', 'fio2']
-            PATIENTS = df.hash_patient_id.tolist()
-            COLUMNS = ['hash_patient_id', 'pacmed_name', 'numerical_value', 'effective_timestamp']
-            START = df.start_timestamp.min()
-            END = df.end_timestamp.max()
+    def add_outcomes(self, df, df_measurements = None):
+        return add_outcomes(self, df, df_measurements)
 
-            df_measurements = self.get_single_timestamp(patients=PATIENTS,
-                                                        parameters=OUTCOMES,
-                                                        columns=COLUMNS,
-                                                        from_timestamp=START,
-                                                        to_timestamp=END)
 
-        if 'pacmed_name' in df_measurements.columns:
-            measurement_names = df_measurements.pacmed_name.unique().tolist()
-            if 'fio2' in measurement_names:
-                if ('po2_arterial' in measurement_names) | ('po2_unspecified' in measurement_names):
-                    pf_ratio = [get_pf_ratio_as_outcome(row,
-                                                        df_measurements,
-                                                        first_outcome_hours,
-                                                        last_outcome_hours) for row in df.itertuples()]
-                    outcome_name = 'pf_ratio_{}h_outcome'.format(first_outcome_hours)
-                    df[outcome_name] = pf_ratio
-
-        return df
 
     @staticmethod
-    def apply_inclusion_criteria(df, max_pf_ratio=150, min_peep=5, min_fio2=0.6):
+    def apply_inclusion_criteria(df, max_pf_ratio=150, min_peep=5, min_fio2=60):
 
         pf_ratio = df.filter(regex='pf_ratio').columns.tolist()
         fio2 = df.filter(regex='fio2').columns.tolist()
