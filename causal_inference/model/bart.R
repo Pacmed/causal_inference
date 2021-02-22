@@ -47,11 +47,15 @@ train_test_split <- function(df, outcome, train_size = 0.8) {
 }
 
 s_learner_predict_ate <- function(model, data) {
+  # Predict outcomes, if everybody in the test set would have been treated
   data$treated <- TRUE
   m_1 <- predict(model, data)
+  # Predict outcomes, if everybody in the control set would have been control
   data$treated <- FALSE
   m_0 <- predict(model, data)
-  cate <- mean(m_1 - m_0)
+  # Calculate the mean difference
+  cate <- mean(m_1) - mean(m_0)
+  # Take confidence intervals
   ci_low <- cate - 1.96 * sqrt(var(m_1)/length(m_1) + var(m_0)/length(m_0))
   ci_high <- cate + 1.96 * sqrt(var(m_1)/length(m_1) + var(m_0)/length(m_0))
   return(list(cate, ci_low, ci_high))
@@ -75,7 +79,7 @@ set_bart_machine_num_cores(4)
 PATH = "/home/adam/adam/data/19012021/"
 setwd(PATH)
 
-outcome = "pf_ratio_2h_8h_manual_outcome"
+outcome = "pf_ratio_12h_24h_manual_outcome"
 df <- load_data('data_guerin_rct.csv', outcome)
 colnames(df)
 
@@ -170,8 +174,16 @@ print(att)
 print(att_ci_low)
 print(att_ci_high)
 
-posterior_treated = bart_machine_get_posterior(bart_machine_treated, X_test)
-posterior_control = bart_machine_get_posterior(bart_machine_control, X_test)
+X_test_1 <- X_test
+X_test_1$treated <- TRUE
+
+X_test_0 <- X_test
+X_test_1$treated <- FALSE
+
+posterior_treated = bart_machine_get_posterior(bart_machine, X_test_1)
+posterior_control = bart_machine_get_posterior(bart_machine, X_test_0)
+
+mean(posterior_treated$y_hat - posterior_control$y_hat)
 
 # 3. cv to choose hyperparameters for treated model
 
@@ -239,7 +251,7 @@ plot_y_vs_yhat(bart_machine_treated,
 
 # which variables are split on
 
-investigate_var_importance(bart_machine, num_replicates_for_avg = 20)
+investigate_var_importance(bart_machine, num_replicates_for_avg = 10)
 
 # test whether variables influenced the model; p<.05 is significant
 
@@ -258,10 +270,13 @@ var_sel_cv$important_vars_cv
 # Additional important
 
 var_selection_by_permute(bart_machine,
-num_reps_for_avg = 10, num_permute_samples = 50,
-num_trees_for_permute = 10, alpha = 0.05,
-plot = TRUE, num_var_plot = Inf, bottom_margin = 10)
+num_reps_for_avg = 5, num_permute_samples = 25,
+num_trees_for_permute = 5, alpha = 0.05,
+plot = TRUE, num_var_plot = Inf, bottom_margin = 5)
 
+# interaction
+
+interaction_investigator(bart_machine)
 
 # 6. Do the same for treated
 

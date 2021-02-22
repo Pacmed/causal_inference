@@ -51,7 +51,7 @@ class PropensityModel(object):
             clf = LogisticRegression(random_state=SEED,
                                      class_weight='balanced',
                                      penalty='none',
-                                     max_iter=5000).fit(X, t)
+                                     max_iter=10000).fit(X, t)
 
             self.causal_model.raw_data._dict['pscore'] = clf.predict_proba(X)[:, 1]
 
@@ -70,14 +70,14 @@ class PropensityModel(object):
 
         sns.distplot(self.causal_model.raw_data['pscore'][self.treatment],
                      hist=True,
-                     bins=10,
+                     #bins=10,
                      kde=True,
                      label='Prone',
                      norm_hist=True)
 
         sns.distplot(self.causal_model.raw_data['pscore'][~self.treatment],
                      hist=True,
-                     bins=10,
+                     #bins=10,
                      kde=True,
                      label='Supine',
                      norm_hist=True)
@@ -132,7 +132,7 @@ class PropensityModel(object):
         return ate_per_stratum
 
     def est_treatment_effect(self):
-        self.causal_model.est_via_ols(adj=2)
+        self.causal_model.est_via_ols(adj=1)
         self.causal_model.est_via_weighting()
         self.causal_model.est_via_blocking()
         self.causal_model.est_via_matching(bias_adj=True, weights='maha')
@@ -141,13 +141,21 @@ class PropensityModel(object):
 
     def print_models(self, raw_effect=None, true_effect=None):
 
-        y = []
-        yerr = []
-        x_label = []
+        y = [22.19, 22.24, 18.97]
+        yerr = [0.23, 0.21, 1.3]
+
+        #y = [8.27, 16.5, 13.77]
+        #yerr = [0.20, 0.20, 1.2]
+
+        #y = [13.77]
+        #yerr = [1.2]
+
+        x_label = ["CFR Wass", "TARNet", "BART"]
+        #x_label = ["BART"]
 
         for method, result in dict(self.causal_model.estimates).items():
             y.append(result["ate"])
-            yerr.append(result["ate_se"])
+            yerr.append(1.96*result["ate_se"])
             x_label.append(method)
 
         if raw_effect:
@@ -156,13 +164,13 @@ class PropensityModel(object):
             x_label.append("raw_effect")
 
         x = np.arange(len(y))
-
+        plt.figure(figsize=(8, 4))
         plt.errorbar(x=x, y=y, yerr=yerr, linestyle="none", capsize=5, marker="o")
         plt.xticks(x, x_label)
-        plt.title("Estimated Average Treatment Effect of proning", fontsize=18)
+        #plt.title("Estimated ATE of proning", fontsize=18)
         plt.ylabel('Estimated ATE with 95%CI')
         if true_effect:
-            plt.hlines(y=true_effect, xmin=-0.5, xmax=4.5, linestyles="dashed")
+            plt.hlines(y=true_effect, xmin=-0.5, xmax=7.5, linestyles="dashed")
         # plt.xlim(-0.5,3.5);
 
 # To do: add manual pscore estimation and variable selection. Add easy variable name checking
