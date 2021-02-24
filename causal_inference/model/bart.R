@@ -46,6 +46,8 @@ train_test_split <- function(df, outcome, train_size = 0.8) {
               y_test_control))
 }
 
+
+
 s_learner_predict_ate <- function(model, data) {
   # Predict outcomes, if everybody in the test set would have been treated
   data$treated <- TRUE
@@ -77,6 +79,7 @@ set.seed(12345)
 set_bart_machine_num_cores(4)
 
 PATH = "/home/adam/adam/data/19012021/"
+#PATH = "/home/adam/adam/cfrnet/data"
 setwd(PATH)
 
 outcome = "pf_ratio_12h_24h_manual_outcome"
@@ -94,6 +97,18 @@ y_train_control <- data[[6]]
 y_test_treated <- data[[7]]
 y_test_control <- data[[8]]
 
+# Bootstrap
+sample_treated <- sample.int(n = nrow(X_train_treated), size = floor(0.95*nrow(X_train_treated)), replace = T)
+X_train_treated <- X_train_treated[sample_treated, ]
+y_train_treated <- y_train_treated[sample_treated]
+
+sample_control <- sample.int(n = nrow(X_train_control), size = floor(0.95*nrow(X_train_control)), replace = T)
+X_train_control <- X_train_control[sample_treated, ]
+y_train_control <- y_train_control[sample_control]
+
+
+
+####
 
 X_train_treated$treated <- TRUE
 X_train_control$treated <- FALSE
@@ -366,4 +381,84 @@ cov_importance_test(bart_machine_treated_cv, covariates = NULL,
 num_permutation_samples = 100, plot = TRUE)
 
 
+### NEW CODE ####
 
+# Import numpy
+library(reticulate)
+conda_list(conda = "auto")
+envname=conda_list()$name[1]
+use_condaenv(envname, required = TRUE)
+np <- import("numpy")
+
+# Load data
+PATH = "/home/adam/adam/cfrnet/data"
+setwd(PATH)
+
+train <- np$load("bguerin_2_8.train.npz")
+train$files
+y_train <- train$f[["yf"]]
+t_train <- train$f[["t"]]
+x_train <- train$f[["x"]]
+
+test <- np$load("bguerin_2_8.test.npz")
+test$files
+y_test <- test$f[["yf"]]
+t_test <- test$f[["t"]]
+x_test <- test$f[["x"]]
+
+# test
+
+x_sample <- data.frame(value=x_train[,,1])
+y_sample <- y_test[,1]
+# Define function for ATE prediction
+
+s_learner_predict_ate <- function(model, data) {
+  # Predict outcomes, if everybody in the test set would have been treated
+  data$treated <- TRUE
+  m_1 <- predict(model, data)
+  # Predict outcomes, if everybody in the control set would have been control
+  data$treated <- FALSE
+  m_0 <- predict(model, data)
+  # Calculate the mean difference
+  cate <- mean(m_1) - mean(m_0)
+  # Take confidence intervals
+  ci_low <- cate - 1.96 * sqrt(var(m_1)/length(m_1) + var(m_0)/length(m_0))
+  ci_high <- cate + 1.96 * sqrt(var(m_1)/length(m_1) + var(m_0)/length(m_0))
+  return(list(cate, ci_low, ci_high))
+}
+
+# Train BART
+options(java.parameters = "-Xmx5g")
+library("bartMachine")
+
+rmse_vector <- 0
+r2_vector <- 0
+ate_vector <- 0
+
+for (i in 1:3){
+  y <- y_train[, i]
+  x <- cbind(t_train[, i], x_train[ , , i])
+  x <- data.frame(value=x)
+  print(dim(x))
+  bart_machine <- bartMachine(x,
+                              y,
+                              use_missing_data = FALSE,
+                              use_missing_data_dummies_as_covars = FALSE,
+                              replace_missing_data_with_x_j_bar = TRUE,
+                              num_trees = 50,
+                              mem_cache_for_speed=TRUE,
+                              alpha = 0.95,
+                              beta = 2,
+                              k = 2,
+                              q = 0.9,
+                              nu = 3,
+                              num_burn_in = 500,
+                              num_iterations_after_burn_in = 1000)
+  y <- y_test[, i]
+  x <- cbind(t_test[, i], x_test[ , , i])
+  x <- data.frame(x)
+  oos_perf = bart_predict_for_test_data(bart_machine, x, y)
+  rmse_vector <- c(rmse_vector, oos_perf$rmse)
+  r2_vector <- c(r2_vector, (1 - ((oos_perf$L2) / sum((y_test - mean(y_test))^2))))
+  ate_vector <- c(ate_vector, s_learner_predict_ate(bart_machine, x)[[1]])
+}
