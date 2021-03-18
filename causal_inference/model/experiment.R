@@ -8,10 +8,10 @@
 ### Load Packages and Functions  ###
 ####################################
 
-options(java.parameters = "-Xmx5g")
+options(java.parameters = "-Xmx50g")
 
 library("bartMachine")
-set_bart_machine_num_cores(4)
+set_bart_machine_num_cores(16)
 library("tidyr")
 
 load_data <- function(file, outcome) {
@@ -174,7 +174,7 @@ save_summary <- function(results, path){
 set.seed(12345) # seed
 path <- "/home/adam/adam/data/19012021/" #data folder
 setwd(path)
-outcome <- "pf_ratio_12h_24h_manual_outcome"
+outcome <- "pf_ratio_2h_8h_manual_outcome"
 n_of_experiments <- 100
 
 
@@ -182,7 +182,7 @@ n_of_experiments <- 100
 ### Run the Experiment ###
 #########################
 
-df <- load_data('data_guerin_rct.csv', outcome)
+df <- load_data('data_guerin_rct_fixed_prone.csv', outcome)
 data <- train_test_split(df, outcome, train_size = 0.8)
 test_data <- prepare_test_data(data)
 results <- run_experiment(data, test_data, n_of_experiments)
@@ -203,15 +203,15 @@ quantile(results[[3]], probs = c(0.025, 0.975))
 ### Save Results ###
 ####################
 
-setwd("/home/adam/adam/data/results/")
+setwd("/home/adam/adam/data/results_fix/")
 
 #path_predictions <- sprintf("results_BART_%s.csv", outcome) not yet implemented
 #save_predictions(results, path_predictions)
 
-path_results <- "results_BART_pf_ratio_12h_24h_manual_outcome.csv"
+path_results <- "results_BART_pf_ratio_2h_8h_manual_outcome.csv"
 save_results(results, path_results)
 
-path_summary <- "summary_BART_pf_ratio_12h_24h_manual_outcome.csv"
+path_summary <- "summary_BART_pf_ratio_2h_8h_manual_outcome.csv"
 save_summary(results, path_summary)
 
 # training with obesity

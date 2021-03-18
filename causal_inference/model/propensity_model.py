@@ -2,7 +2,9 @@ from causalinference import CausalModel
 import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 from sklearn.linear_model import LogisticRegression
+
 from sklearn.metrics import roc_auc_score
 from sklearn.metrics import r2_score
 
@@ -36,7 +38,7 @@ class PropensityModel(object):
 
         return cols
 
-    def est_propensity(self, X, t, method = 'default'):
+    def est_propensity(self, X, t, method = 'default', pscore_flag = False, pscore_model = None):
 
         if method == 'default':
             self.causal_model.est_propensity()
@@ -55,10 +57,13 @@ class PropensityModel(object):
 
             self.causal_model.raw_data._dict['pscore'] = clf.predict_proba(X)[:, 1]
 
-            print("roc_auc:",roc_auc_score(t, clf.predict_proba(X)[:, 1]))
+            if pscore_flag:
+                self.causal_model.raw_data._dict['pscore'] = pscore_model.predict_proba(X)[:, 1]
+                print(self.causal_model.raw_data._dict['pscore'])
+            #print("roc_auc:",roc_auc_score(t, clf.predict_proba(X)[:, 1]))
 
-            coef = clf.coef_.round(2).T.tolist()
-            print(coef)
+            #coef = clf.coef_.round(2).T.tolist()
+            #print(coef)
 
         if method == 'polynomial':
             # Select variables with highest ndiff that have big covariates in pscore model
@@ -88,6 +93,21 @@ class PropensityModel(object):
         plt.xlabel('Propensity score')
         plt.ylabel('Density')
         plt.show()
+
+    def plot_propensity(self):
+        treated_pscore = self.causal_model.raw_data['pscore'][self.treatment]
+        treated = {'Propensity_score': treated_pscore, 'Group': np.ones(treated_pscore.shape)}
+        df_trated = pd.DataFrame(treated)
+
+        control_pscore = self.causal_model.raw_data['pscore'][~self.treatment]
+        control = {'Propensity_score': control_pscore, 'Group': np.zeros(control_pscore.shape)}
+        df_control = pd.DataFrame(control)
+
+        df_plot = pd.concat([df_trated, df_control])
+        df_plot.loc[df_plot.Group == 1, 'Group'] = 'Treated'
+        df_plot.loc[df_plot.Group == 0, 'Group'] = 'Control'
+
+        sns.displot(df_plot, x="Propensity_score", hue="Group", stat="probability")
 
     def trim(self):
 
@@ -131,12 +151,15 @@ class PropensityModel(object):
 
         return ate_per_stratum
 
-    def est_treatment_effect(self):
-        self.causal_model.est_via_ols(adj=1)
-        self.causal_model.est_via_weighting()
-        self.causal_model.est_via_blocking()
+    def est_treatment_effect(self, matching_only=False):
+
         self.causal_model.est_via_matching(bias_adj=True, weights='maha')
-        print(self.causal_model.estimates)
+
+        if not matching_only:
+            self.causal_model.est_via_ols(adj=1)
+            self.causal_model.est_via_weighting()
+            self.causal_model.est_via_blocking()
+            print(self.causal_model.estimates)
 
 
     def print_models(self, raw_effect=None, true_effect=None):
@@ -173,4 +196,27 @@ class PropensityModel(object):
             plt.hlines(y=true_effect, xmin=-0.5, xmax=7.5, linestyles="dashed")
         # plt.xlim(-0.5,3.5);
 
-# To do: add manual pscore estimation and variable selection. Add easy variable name checking
+def run_matching_experiment(y, t, x, n_of_experiments):
+
+    ate = []
+    rmse = []
+    r2 = []
+
+    for i in range(n_of_experiments):
+        #y, t, x = y[:, i].reshape(len(y[:, i], )), t[:, i].reshape(len(t[:, i], )), x[:, :, i].reshape(x[:, :, i].shape[0], x[:, :, i].shape[1]))
+        print(i)
+        y_i, t_i, x_i = y[:, i], t[:, i], x[:, :, i]
+        propensity_model = PropensityModel(outcome=y_i, treatment=t_i, covariates=x_i)
+        propensity_model.est_propensity(X=x_i, t=t_i, method='balanced')
+        propensity_model.est_treatment_effect(matching_only=True)
+        ate.append(propensity_model.causal_model.estimates['matching']['ate'].round(2))
+        rmse.append(0)
+        r2.append(0)
+        propensity_model.propensity_model.reset()
+        propensity_model.causal_model.reset()
+
+    results = {'ate': ate, 'rmse': rmse, 'r2': r2}
+    df_results = pd.DataFrame(data=results)
+
+    return df_results
+

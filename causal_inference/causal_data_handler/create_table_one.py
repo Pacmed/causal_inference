@@ -26,9 +26,9 @@ def calculate_ndiff(x):
     return round(ndiff, 2)
 
 def create_table_one_bool(df):
-    df = df.loc[:, ((df.dtypes == np.bool) | (df.dtypes == np.object))]
-    df_supine = df.loc[~df.treated, ((df.dtypes == np.bool) | (df.dtypes == np.object))]
-    df_prone = df.loc[df.treated, ((df.dtypes == np.bool) | (df.dtypes == np.object))]
+    df = df.loc[:, ((df.dtypes == np.bool) | (df.dtypes == np.object) | (df.dtypes == bool))]
+    df_supine = df.loc[~df.treated, ((df.dtypes == np.bool) | (df.dtypes == np.object) | (df.dtypes == bool))]
+    df_prone = df.loc[df.treated, ((df.dtypes == np.bool) | (df.dtypes == np.object) | (df.dtypes == bool))]
     df_summary = pd.DataFrame(index=['freq', 'freq_supine', 'freq_prone', 'ndiff'])
 
     if 'gender' in df.columns:
@@ -63,6 +63,19 @@ def create_table_one_bool(df):
             df_summary.loc['ndiff', bool_column] = calculate_ndiff_boolean_vectorized(df_summary.loc['freq_prone', bool_column],
                                                                                         df_summary.loc['freq_supine', bool_column])
 
+    renal = df.filter(regex='renal').columns
+    if len(booleans) > 0:
+        for bool_column in renal:
+            df_summary.loc['freq', bool_column] = df[bool_column].value_counts(normalize=True,
+                                                                               sort=False)[1]
+            df_summary.loc['freq_supine', bool_column] = df_supine[bool_column].value_counts(normalize=True,
+                                                                                             sort=False)[1]
+            df_summary.loc['freq_prone', bool_column] = df_prone[bool_column].value_counts(normalize=True,
+                                                                                           sort=False)[1]
+
+            df_summary.loc['ndiff', bool_column] = calculate_ndiff_boolean_vectorized(
+                df_summary.loc['freq_prone', bool_column],
+                df_summary.loc['freq_supine', bool_column])
 
     df_summary = df_summary.round(2).T
 
