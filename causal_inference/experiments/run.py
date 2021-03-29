@@ -8,6 +8,7 @@ The 'Experiment' class runs an experiment by training a model on different boots
 import pandas as pd
 
 from causal_inference.experiments.summary import summary
+from causal_inference.model.utils import calculate_rmse
 
 class Experiment:
     """
@@ -17,18 +18,21 @@ class Experiment:
     """
 
 
-    def __init__(self, model, propensity_model=None, n_of_experiments=100):
-        self.model = model
+    def __init__(self, causal_model, propensity_model=None, n_of_experiments=100):
+        self.causal_model = causal_model
         self.propensity_model = propensity_model
         self.n_of_experiments = n_of_experiments
+        self.t = None
+        self.f_ = None
+        self.cf_ = None
+        self.r2_train = []
+        self.rmse_train = []
+        self.ate_train = []
+        self.rmse_test = []
+        self.ate_test = []
 
 
     def run(self, y_train, t_train, X_train, y_test, t_test, X_test):
-
-        ate = []
-        rmse = []
-        r2 = []
-
 
         for experiment in range(self.n_of_experiments):
 
@@ -38,7 +42,10 @@ class Experiment:
 
             y, t, X = y_train[:, experiment], t_train[:, experiment], X_train[:, :, experiment]
             y, t = y.reshape(len(y), 1), t.reshape(len(t), 1)
-            model_ = self.model.fit(X, y, t)
+            causal_model = self.causal_model.fit(X, y, t)
+            self.r2_train.append(causal_model.r2_)
+            self.rmse_train.append(causal_model.rmse_)
+            self.ate_train.append(causal_model.ate_)
 
             ################
             ###   TEST   ###
@@ -46,17 +53,34 @@ class Experiment:
 
             y, t, X = y_test[:, experiment], t_test[:, experiment], X_test[:, :, experiment]
             y, t = y.reshape(len(y), 1), t.reshape(len(t), 1)
-            self.result_ = model_.predict(X, t)
-            y_pred_ = self.result_[:, t]
+            y_pred = causal_model.predict(X, t)
 
+            if self.t is None:
+                self.t = t
+                self.f_ = y_pred
+                self.cf_ = causal_model.predict_cf(X, t)
+
+            self.rmse_test = calculate_rmse(y, y_pred)
+
+            self.ate_test = causal_model.predict_ate(X, t) # Is this true for models other that OLS?
 
         ###################
         ###   RESULTS   ###
         ###################
 
-        self.pred_ = None
-        self.results = pd.DataFrame(data={'ate': ate, 'rmse': rmse, 'r2': r2})
-        self.summary = summary(self.result_)
+        pred = {'t': self.t.reshape(len(self.t), ),
+                'f': self.f_,
+                'cf': self.cf_}
+
+        results = {'rmse_train': self.rmse_train,
+                   'r2_train': self.r2_train,
+                   'ate_train': self.ate_train,
+                   'rmse_test': self.rmse_test,
+                   'ate_test': self.ate_test}
+
+        self.pred = pd.DataFrame(data=pred)
+        self.results = pd.DataFrame(data=results)
+        self.summary = summary(self.results)
 
 
         return self

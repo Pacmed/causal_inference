@@ -28,8 +28,8 @@ class OLS(BaseEstimator):
         X : array-like, shape (n_samples, n_features)
             The training input samples.
         y : array-like, shape (n_samples,) or (n_samples, n_outputs)
-            The target values.
-        t : array-like, shape (n_samples,) or (n_samples, n_outputs)
+            The training target values.
+        t : array-like, shape (n_samples,) or (n_samples, n_treatments)
             The training input treatment values.
 
         Returns
@@ -40,49 +40,70 @@ class OLS(BaseEstimator):
 
 
         X = np.hstack((t, X))
+        X = sm.add_constant(X)
         X, y = check_X_y(X, y)
-        print(y.shape, y.shape, X.shape)
-        self.model_ = sm.OLS(y, sm.add_constant(X)).fit()
 
-        self.rmse_ = calculate_rmse(y, self.model_.predict(sm.add_constant(X)))
-        self.r2_ = calculate_r2(y, self.model_.predict(sm.add_constant(X)))
+        self.model_ = sm.OLS(y, X).fit()
+        y_pred = self.model_.predict(X)
+        self.rmse_ = calculate_rmse(y, y_pred)
+        self.r2_ = calculate_r2(y, y_pred)
+        self.ate_ = self.predict_ate()
+
         self.is_fitted_ = True
 
         return self
 
     def predict(self, X, t=None):
         """
-        Makes predictions with the simple outcome regression.
+        Makes factual predictions with the simple outcome regression models.
 
         Parameters
         ----------
         X : array-like, shape (n_samples, n_features)
             The test input samples.
 
-        t : array-like, shape (n_samples,) or (n_samples, n_outputs)
+        t : array-like of Boolean, shape (n_samples,) or (n_samples, n_treatments)
             The training input treatment values.
-
 
         Returns
         -------
-        y : ndarray, shape (n_samples, 2)
-            Returns an array of predicted outcomes.
+        y : ndarray, shape (n_samples,)
+            Returns an array of predicted factual outcomes.
         """
 
-        X = check_array(X, accept_sparse=True)
+        X = check_array(X)
         check_is_fitted(self, 'is_fitted_')
+        if not (t is None):
+            X = np.hstack((t, X))
+        X = sm.add_constant(X)
 
-        X_treated = np.hstack((np.zeros((X.shape[0], 1), dtype=np.int64), X))
-        X_control = np.hstack((np.ones((X.shape[0], 1), dtype=np.int64), X))
-        print(X.shape, X_control.shape, X_treated.shape)
-        m_1 = self.model_.predict(sm.add_constant(X_treated))
-        m_0 = self.model_.predict(sm.add_constant(X_control))
+        return self.model_.predict(X)
+
+    def predict_cf(self, X, t=None):
+        """
+        Makes counterfactual predictions with the simple outcome regression models.
+
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, n_features)
+            The test input samples.
+
+        t : array-like of Boolean, shape (n_samples,) or (n_samples, n_treatments)
+            The training input treatment values.
+
+        Returns
+        -------
+        y : ndarray, shape (n_samples,)
+            Returns an array of predicted factual outcomes.
+        """
+        if not (t is None):
+            t=~t
+
+        return self.predict(X, t)
 
 
-        return np.Series(m_1, m_0)
-
-    def predict_ate(self):
+    def predict_ate(self, X=None, t=None):
         return self.model_.params[1]
 
     def score(self, data, targets, treatment):
-        return calculate_r2(targets, self.predict(data)[treatment])
+        return calculate_rmse(targets, self.predict(data)[treatment])

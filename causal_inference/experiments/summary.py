@@ -5,19 +5,26 @@ This module generates a summary of the results of an experiment.
 import numpy as np
 import pandas as pd
 
-def summary(results, corrected=False, imported_from_r=False, imported_from_cfr=False):
+def summary(df_results, corrected=False, imported_from_r=False, imported_from_cfr=False):
     """
     Generates a pd.DataFrame with a summary of the experiment results.
     """
 
-    assert ['ate', 'rmse', 'r2'] in results.column
-
     if imported_from_r:
-        results = convert_results_r(results)
+        df_results = convert_results_r(df_results)
 
     if imported_from_cfr:
-        results = convert_results_cfr(results)
+        df_results = convert_results_cfr(df_results)
 
+    df_summary = pd.DataFrame(data=[])
+
+    for column in df_results:
+        print(column)
+        values = [np.mean(df_results[column]),
+                  np.percentile(df_results[column], q=2.5, interpolation='higher'),
+                  np.percentile(df_results[column], q=97.5, interpolation='lower')]
+        df_summary[column] = values
+    """
     if corrected:
         ate = [np.mean(results['ate']),
                np.percentile(results['ate'], q=2.5, interpolation='higher'),
@@ -39,8 +46,9 @@ def summary(results, corrected=False, imported_from_r=False, imported_from_cfr=F
               np.percentile(results['r2'], q=2.5),
               np.percentile(results['r2'], q=97.5)]
 
+    """
 
-    return pd.DataFrame(data={'ate': ate, 'rmse': rmse, 'r2': r2}).T.round(2)
+    return df_summary.T.round(2)
 
 
 def convert_results_r():
