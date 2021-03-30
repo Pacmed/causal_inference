@@ -36,14 +36,17 @@ class PropensityScore(BaseEstimator):
         self : object
             Returns self.
         """
-        X, t = check_X_y(X, t)
+        #X, t = check_X_y(X, t)
+        #Check if t is bool
+
+        t = t.reshape(len(t), )
         self.model_ = LogisticRegression(random_state=self.random_state,
                                          class_weight='balanced',
                                          penalty='none',
                                          max_iter=self.max_iter,
                                          n_jobs=-1,
                                          solver='newton-cg').fit(X, t)
-
+        self.is_fitted_ = True
         return self
 
     def predict(self, X):
@@ -87,7 +90,7 @@ class PropensityScore(BaseEstimator):
         check_is_fitted(self, 'is_fitted_')
 
         weights = self.model_.predict_proba(X)[:, 1]
-        weights[~t] = 1 - weights[~t]
+        weights[~t.flatten()] = 1 - weights[~t.flatten()]
 
         if not (self.clipping is None):
             weights[weights < self.clipping] = self.clipping  # clipping

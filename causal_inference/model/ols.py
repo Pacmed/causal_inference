@@ -18,6 +18,7 @@ class OLS(BaseEstimator):
     """
     def __init__(self, random_state=None):
         self.random_state = random_state
+        self.is_causal = True
 
     def fit(self, X, y, t=None):
         """
@@ -38,8 +39,8 @@ class OLS(BaseEstimator):
             Returns self.
         """
 
-
-        X = np.hstack((t, X))
+        if not (t is None):
+            X = np.hstack((t, X))
         X = sm.add_constant(X)
         X, y = check_X_y(X, y)
 
