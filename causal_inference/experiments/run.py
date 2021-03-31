@@ -2,7 +2,10 @@
 Runs, stores and saves an experiment.
 """
 
+import os
+
 import pandas as pd
+import numpy as np
 
 from typing import Optional, List
 from sklearn.base import BaseEstimator
@@ -147,10 +150,18 @@ class Experiment:
 
         return self
 
-    def save(self):
-        {self.model}+"lala"
-        """ Saves predictions, results and summary """
+    def save(self, path):
+        """Saves the experiment."""
+        os.chdir(path)
+        os.getcwd()
 
+        np.savetxt(f'pred_{self.causal_model}.csv', self.pred_, delimiter=",", fmt='%1.2f')
+        np.savetxt(f'results_{self.causal_model}.csv', self.results_, delimiter=",", fmt='%1.2f')
+        np.savetxt(f'summary_{self.causal_model}.csv', self.summary__, delimiter=",", fmt='%1.2f')
+        
+        print('Experiment saved!')
+
+        return None
 
 
 
