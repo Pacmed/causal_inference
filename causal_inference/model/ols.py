@@ -42,12 +42,13 @@ class OLS(BaseEstimator):
         if not (t is None):
             X = np.hstack((t, X))
         X = sm.add_constant(X)
-        X, y = check_X_y(X, y)
 
         self.model_ = sm.OLS(y, X).fit()
+
+        # Additionally storing the training metrics and effect
         y_pred = self.model_.predict(X)
         self.rmse_ = calculate_rmse(y, y_pred)
-        self.r2_ = calculate_r2(y, y_pred)
+        self.r2_ = calculate_r2(y, y_pred) # TO DO: check the r2 metric consistency across models
         self.ate_ = self.predict_ate()
 
         self.is_fitted_ = True
@@ -72,8 +73,7 @@ class OLS(BaseEstimator):
             Returns an array of predicted factual outcomes.
         """
 
-        X = check_array(X)
-        check_is_fitted(self, 'is_fitted_')
+        #check_is_fitted(self, 'is_fitted_')
         if not (t is None):
             X = np.hstack((t, X))
         X = sm.add_constant(X)

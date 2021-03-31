@@ -1,24 +1,57 @@
 """
-This module implements the 'Experiment' class.
-
-The 'Experiment' class runs an experiment by training a model on different bootstrap samples passed to the
-'run' method. It generates predictions, results and a summary.
+Runs, stores and saves an experiment.
 """
 
 import pandas as pd
 
+from typing import Optional, List
+from sklearn.base import BaseEstimator
+
+from causal_inference.model.propensity import PropensityScore
 from causal_inference.experiments.summary import summary
 from causal_inference.model.utils import calculate_rmse
 from causal_inference.model.make_causal import make_causal
 
 class Experiment:
     """
-    The purpose of a single run of an experiment is to run the selected model on multiple bootstrap samples creating
-    for each sample a prediction, result and after all iteriations a summary.
+    A class used to represent an Experiment.
+
+    The experiment consists of training a selected model on each of the bootstrapped training samples and making a
+    prediction on the test set.
+
+    Attributes
+    ----------
+    pred_ : pd.DataFrame
+        a data frame containing the test treatment vector, the factual and the counterfactual prediction made for each
+        observation in the first bootstrap sample.
+    results_ : pd.DataFrame
+        a data frame containing the accuracy metrics and the treatment effect for each of the boostrap sample.
+    summary_ : pd.DataFrame
+        a data frame containing the mean and 95%CI for each of the metric/effect in 'results_'.
+
+    Methods
+    -------
+    run()
+        Runs the experiment on data.
+    save()
+        Saves the experiment.
     """
 
+    def __init__(self,
+                 causal_model: BaseEstimator,
+                 propensity_model: Optional[PropensityScore]=None,
+                 n_of_experiments: Optional[int]=100):
+        """
+        Parameters
+        ----------
+        causal_model : BaseEstimator
+            A causal model implemented in the package or any BaseEstimator.
+        propensity_model : Optional[PropensityScore]
+            A propensity score model implemented in the package.
+        n_of_experiments : Optional[int]
+            The maximum number of bootstrap samples to be used.
+        """
 
-    def __init__(self, causal_model, propensity_model=None, n_of_experiments=100):
         self.causal_model = causal_model
         self.propensity_model = propensity_model
         self.n_of_experiments = n_of_experiments
@@ -32,9 +65,29 @@ class Experiment:
         self.ate_test = []
 
 
+
     def run(self, y_train, t_train, X_train, y_test, t_test, X_test):
-        """Runs experiment on bootstrap samples.
-         Accepts both t, y as either 1D or 2D vectors. """
+        """ Runs experiments on bootstrap samples.
+
+        Parameters
+        ----------
+        y_train : np.ndarray
+
+        t_train : np.ndarray
+
+        X_train: np.ndarray
+
+        y_test: np.ndarray
+
+        t_test: np.ndarray
+
+        X_test: np.ndarray
+
+        Returns
+        -------
+        self
+
+        """
 
         for experiment in range(self.n_of_experiments):
 
@@ -45,7 +98,6 @@ class Experiment:
             y, t, X = y_train[:, experiment], t_train[:, experiment], X_train[:, :, experiment]
             y, t = y.reshape(len(y), ), t.reshape(len(t), 1)
 
-            # Check, if the model is causal
             try:
                 assert self.causal_model.is_causal
             except:
@@ -72,8 +124,8 @@ class Experiment:
                 self.f_ = y_pred
                 self.cf_ = causal_model.predict_cf(X, t)
 
-            self.rmse_test = calculate_rmse(y, y_pred)
-            self.ate_test = causal_model.predict_ate(X, t)
+            self.rmse_test.append(calculate_rmse(y, y_pred))
+            self.ate_test.append(causal_model.predict_ate(X, t))
 
         ###################
         ###   RESULTS   ###
