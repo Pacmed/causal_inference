@@ -19,7 +19,6 @@ def summary(df_results, corrected=False, imported_from_r=False, imported_from_cf
     df_summary = pd.DataFrame(data=[])
 
     for column in df_results:
-        print(column)
         values = [np.mean(df_results[column]),
                   np.percentile(df_results[column], q=2.5, interpolation='higher'),
                   np.percentile(df_results[column], q=97.5, interpolation='lower')]
@@ -47,8 +46,9 @@ def summary(df_results, corrected=False, imported_from_r=False, imported_from_cf
               np.percentile(results['r2'], q=97.5)]
 
     """
-
-    return df_summary.T.round(2)
+    df_summary = df_summary.T.round(2)
+    df_summary.columns = ['mean', 'CI_start', 'CI_end']
+    return df_summary
 
 
 def convert_results_r():
