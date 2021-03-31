@@ -158,7 +158,7 @@ class Experiment:
         np.savetxt(f'pred_{self.causal_model}.csv', self.pred_, delimiter=",", fmt='%1.2f')
         np.savetxt(f'results_{self.causal_model}.csv', self.results_, delimiter=",", fmt='%1.2f')
         np.savetxt(f'summary_{self.causal_model}.csv', self.summary__, delimiter=",", fmt='%1.2f')
-        
+
         print('Experiment saved!')
 
         return None

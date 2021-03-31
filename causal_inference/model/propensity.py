@@ -98,3 +98,27 @@ class PropensityScore(BaseEstimator):
         weights = 1 / weights
 
         return weights
+
+# To be added:
+def save_propensity_plot(t, X, path):
+    experiment = 0
+    t, X = t[:, experiment].reshape(len(t[:, experiment]), 1).flatten(), X[:, :, experiment]
+    pscore = LogisticRegression(random_state=1234,
+                                class_weight='balanced',
+                                penalty='none',
+                                max_iter=10000).fit(X, t).predict_proba(X)[:, 1]
+
+    treated_pscore = pscore[t]
+    treated = {'Propensity_score': treated_pscore, 'Group': np.ones(treated_pscore.shape)}
+    df_trated = pd.DataFrame(treated)
+
+    control_pscore = pscore[~t]
+    control = {'Propensity_score': control_pscore, 'Group': np.zeros(control_pscore.shape)}
+    df_control = pd.DataFrame(control)
+
+    df_plot = pd.concat([df_trated, df_control])
+    df_plot.loc[df_plot.Group == 1, 'Group'] = 'Treated'
+    df_plot.loc[df_plot.Group == 0, 'Group'] = 'Control'
+
+    sns.displot(df_plot, x="Propensity_score", hue="Group", stat="probability")
+    plt.savefig(path)
