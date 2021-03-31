@@ -4,22 +4,24 @@ This module implements simple outcome regression (1-OLS or S-OLS).
 
 import numpy as np
 import statsmodels.api as sm
-from sklearn.base import BaseEstimator, ClassifierMixin, TransformerMixin
+from sklearn.base import BaseEstimator
+from typing import Optional, List
 from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
-from statsmodels.tools.eval_measures import rmse
-from sklearn.utils.multiclass import unique_labels
-from sklearn.metrics import euclidean_distances
 
 from causal_inference.model.utils import calculate_rmse, calculate_r2
 
+
 class OLS(BaseEstimator):
-    """ A simple outcome regression estimator.
+    """ A simple outcome regression model.
     """
 
     def __init__(self):
         self.is_causal = True
 
-    def fit(self, X, y, t=None):
+    def fit(self,
+            X: np.ndarray,
+            y: np.ndarray,
+            t: Optional[np.ndarray]=None):
         """
         Fits the simple outcome regression to training data.
 
@@ -38,6 +40,7 @@ class OLS(BaseEstimator):
         self : object
             Returns self.
         """
+
         if t is None:
             pass
         else:
@@ -57,7 +60,9 @@ class OLS(BaseEstimator):
 
         return self
 
-    def predict(self, X, t=None):
+    def predict(self,
+                X: np.ndarray,
+                t: Optional[np.ndarray]=None):
         """
         Makes factual predictions with the simple outcome regression models.
 
@@ -86,7 +91,9 @@ class OLS(BaseEstimator):
 
         return self.model_.predict(X)
 
-    def predict_cf(self, X, t=None):
+    def predict_cf(self,
+                   X: np.ndarray,
+                   t: np.ndarray=None):
         """
         Makes counterfactual predictions with the simple outcome regression models.
 
@@ -111,7 +118,9 @@ class OLS(BaseEstimator):
 
         return self.predict(X, t)
 
-    def predict_cate(self, X, t):
+    def predict_cate(self,
+                     X: np.ndarray,
+                     t: np.ndarray):
         """
         Estimates the conditional average treatment effect.
 
@@ -133,7 +142,9 @@ class OLS(BaseEstimator):
 
         return cate
 
-    def predict_ate(self, X=None, t=None):
+    def predict_ate(self,
+                    X: Optional[np.ndarray]=None,
+                    t: Optional[np.ndarray]=None):
         """
         Estimates the average treatment effect.
 
@@ -149,9 +160,13 @@ class OLS(BaseEstimator):
         ate : np.float
             Returns an ate estimate.
         """
+
         return self.model_.params[1]
 
-    def score(self, X, y, t=None):
+    def score(self,
+              X: np.ndarray,
+              y: np.ndarray,
+              t: Optional[np.ndarray]=None):
         """
         Performs model evaluation by calculating the RMSE.
 
@@ -169,4 +184,5 @@ class OLS(BaseEstimator):
         ate : np.float
             Returns an ate estimate.
         """
+
         return calculate_rmse(y_true=y, y_pred=self.predict(X=X, t=t))

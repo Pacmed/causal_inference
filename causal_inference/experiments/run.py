@@ -12,8 +12,8 @@ from sklearn.base import BaseEstimator
 
 from causal_inference.model.propensity import PropensityScore
 from causal_inference.experiments.summary import summary
-from causal_inference.model.utils import calculate_rmse
-from causal_inference.model.make_causal import make_causal
+from causal_inference.model.utils import calculate_rmse, check_treatment_indicator, check_model
+
 
 class Experiment:
     """
@@ -69,27 +69,36 @@ class Experiment:
 
 
 
-    def run(self, y_train, t_train, X_train, y_test, t_test, X_test):
+    def run(self,
+            y_train: np.ndarray,
+            t_train: np.ndarray,
+            X_train: np.ndarray,
+            y_test: np.ndarray,
+            t_test: np.ndarray,
+            X_test: np.ndarray):
         """ Runs experiments on bootstrap samples.
 
         Parameters
         ----------
         y_train : np.ndarray
-
+            The training target values of shape shape (n_samples, n_of_bootstrapped_samples).
         t_train : np.ndarray
-
+            The training input treatment values of bool and shape
+             (n_samples, n_of_treatments, n_of_bootstrapped_samples). The treatment indicator should be a bool.
         X_train: np.ndarray
-
+            The training input samples of shape (n_samples, n_features, n_of_bootstrapped_samples).
         y_test: np.ndarray
-
+            The test target values of shape shape (n_samples, n_of_bootstrapped_samples).
         t_test: np.ndarray
-
+            The test input treatment values of bool and shape
+             (n_samples, n_of_treatments, n_of_bootstrapped_samples). The treatment indicator should be a bool.
         X_test: np.ndarray
+            The test input samples of shape (n_samples, n_features, n_of_bootstrapped_samples).
 
         Returns
         -------
-        self
-
+        self : object
+            Returns self.
         """
 
         for experiment in range(self.n_of_experiments):
@@ -101,11 +110,8 @@ class Experiment:
             y, t, X = y_train[:, experiment], t_train[:, experiment], X_train[:, :, experiment]
             y, t = y.reshape(len(y), ), t.reshape(len(t), 1)
 
-            try:
-                assert self.causal_model.is_causal
-            except:
-                self.causal_model = make_causal(self.causal_model)
-                assert self.causal_model.is_causal
+            t = check_treatment_indicator(t)
+            self.causal_model = check_model(self.causal_model)
 
             causal_model = self.causal_model.fit(X, y, t)
 
@@ -119,6 +125,9 @@ class Experiment:
 
             y, t, X = y_test[:, experiment], t_test[:, experiment], X_test[:, :, experiment]
             y, t = y.reshape(len(y), ), t.reshape(len(t), 1)
+
+            t = check_treatment_indicator(t)
+
             y_pred = causal_model.predict(X, t)
 
             if self.t is None:
@@ -150,8 +159,20 @@ class Experiment:
 
         return self
 
-    def save(self, path):
-        """Saves the experiment."""
+    def save(self,
+             path:str):
+        """Saves the experiment.
+
+        Parameters
+        ----------
+        path : str
+            Directory to save the experiment in.
+
+        Returns
+        -------
+        none : None
+
+        """
         os.chdir(path)
         os.getcwd()
 
@@ -162,6 +183,3 @@ class Experiment:
         print('Experiment saved!')
 
         return None
-
-
-

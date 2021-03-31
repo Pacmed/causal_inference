@@ -1,27 +1,30 @@
 """
-This module implements weighting (IPW).
+This module implements inverse probability weighting (IPW).
 """
 
 import numpy as np
 import statsmodels.api as sm
-from sklearn.base import BaseEstimator, ClassifierMixin, TransformerMixin
+
+from typing import Optional, List
+from sklearn.base import BaseEstimator
 from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
-from statsmodels.tools.eval_measures import rmse
-from sklearn.utils.multiclass import unique_labels
-from sklearn.metrics import euclidean_distances
 
 from causal_inference.model.utils import calculate_rmse, calculate_r2
 from causal_inference.model.propensity import PropensityScore
 
+
 class IPW(BaseEstimator):
+    """ An inverse probability weighting model.
     """
-    A simple outcome regression estimator.
-    """
-    def __init__(self, random_state=None, propensity_model=None, max_iter=1000, clipping=None):
-        self.random_state = random_state
+    def __init__(self,
+                 propensity_model: Optional[PropensityScore]=None):
+        """
+        Parameters
+        ----------
+        propensity_model: PropensityScore model used to estimate the inverse probability weights.
+        """
+
         self.propensity_model = propensity_model
-        self.max_iter = max_iter
-        self.clipping = clipping
         self.is_causal = True
 
     def fit(self, X, y, t=None):
