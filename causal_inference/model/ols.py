@@ -31,7 +31,7 @@ class OLS(BaseEstimator):
         y : array-like, shape (n_samples,) or (n_samples, n_outputs)
             The training target values.
         t : array-like, shape (n_samples,) or (n_samples, n_treatments)
-            The training input treatment values.
+            The training input treatment values. ndarray of floats
 
         Returns
         -------
@@ -73,7 +73,7 @@ class OLS(BaseEstimator):
             Returns an array of predicted factual outcomes.
         """
 
-        #check_is_fitted(self, 'is_fitted_')
+        check_is_fitted(self, 'is_fitted_')
         if not (t is None):
             X = np.hstack((t, X))
         X = sm.add_constant(X)
