@@ -1,10 +1,9 @@
-"""
-This model implements the blocking estimator.
+""" This module implements the blocking estimator.
 """
 
 import numpy as np
 import statsmodels.api as sm
-from sklearn.base import BaseEstimator, ClassifierMixin, TransformerMixin
+from sklearn.base import BaseEstimator
 from typing import Optional, List
 from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
 from statsmodels.tools.eval_measures import rmse
@@ -15,8 +14,7 @@ from causal_inference.model.propensity import PropensityScore
 from causal_inference.model.utils import calculate_rmse, calculate_r2
 
 class Blocking(BaseEstimator):
-    """
-    A blocking estimator.
+    """ A blocking model.
     """
     def __init__(self,
                  bins: List[float]=None,
@@ -25,11 +23,12 @@ class Blocking(BaseEstimator):
         Parameters
         ----------
         propensity_model: PropensityScore
-        PropensityScore model used to estimate the inverse probability weights.
+            PropensityScore model used to stratify the data.
         """
 
         if bins is None:
-            bins = [0, 0.2, 0.4, 0.6, 0.8, 1]
+            bins = [0, 0.4, 0.6, 0.75, 1]
+
         self.bins = bins
         self.propensity_model = propensity_model
         self.is_causal = True
@@ -39,18 +38,20 @@ class Blocking(BaseEstimator):
                  y: Optional[np.ndarray]=None,
                  t: Optional[np.ndarray]=None,
                  test: bool=False):
-        """
-        Fits the weighting model to data.
+        """Stratifies the data set.
 
         Parameters
         ----------
         X : np.ndarray
-            The training input samples of shape (n_samples, n_features).
+            Covariates of shape (n_samples, n_features).
         y : np.ndarray
-            The training target values of shape shape (n_samples,).
+            Target values of shape (n_samples,).
         t : Optional[np.ndarray]
-            The training input treatment values of bool and shape (n_samples, n_of_treatments).
-            If t is None, then the first column of X is loaded as the treatment vector.
+            The training treatment indicators of type: bool and shape (n_samples, 1).
+            If t is None, then the first column of X is expected to be the treatment's indicator vector t.
+        test : bool
+            If True, then a stratification of the test set is performed. The propensity score are being calculated
+            with the propensity model fitted to the training data.
 
         Returns
         -------
@@ -58,16 +59,24 @@ class Blocking(BaseEstimator):
             Returns self.
         """
 
+        # If a propensity model is not specified, initialize with clipping set to 0.1
         if self.propensity_model is None:
-            self.propensity_model = PropensityScore(max_iter=self.max_iter, random_state=self.random_state)
+            self.propensity_model = PropensityScore(clipping=0.1)
 
+        # Do not fit the propensity model for test set stratification.
         if not test:
             self.propensity_model_ = self.propensity_model.fit(X, t)
 
+        # Estimate the propensity scores
         propensity_score = self.propensity_model_.predict(X)
+
 
         if not (t is None):
             X = np.hstack((t, X))
+        if test:
+            X = check_array(X)
+        else:
+            X, y = check_X_y(X, y)
 
         n_of_bins = len(self.bins) - 1
 
@@ -83,15 +92,14 @@ class Blocking(BaseEstimator):
             X: np.ndarray,
             y: np.ndarray,
             t: Optional[np.ndarray]=None):
-        """
-        Fits the weighting model to data.
+        """Fits the blocking model to data.
 
         Parameters
         ----------
         X : np.ndarray
             The training input samples of shape (n_samples, n_features).
         y : np.ndarray
-            The training target values of shape shape (n_samples,).
+            The training target values of shape  (n_samples,).
         t : Optional[np.ndarray]
             The training input treatment values of bool and shape (n_samples, n_of_treatments).
             If t is None, then the first column of X is loaded as the treatment vector.
@@ -105,93 +113,102 @@ class Blocking(BaseEstimator):
         X, y, n = self.stratify(X, y, t)
         X = [sm.add_constant(X[i]) for i in range(len(X))]
         self.model_ = [sm.OLS(y[i], X[i]).fit() for i in range(len(X))]
-        y_pred = [self.model_[i].predict(X[i]) for i in range(len(X))]
+        self.is_fitted_ = True
 
-        self.rmse_ = [calculate_rmse(y[i], y_pred[i]) for i in range(len(X))]
-        self.r2_ = [calculate_r2(y[i], y_pred[i]) for i in range(len(X))] #TO DO: check for r2 correctness across models
-        self.ate_ = [self.model_[i].params[1] for i in range(len(X))]
+        y_f = [self.model_[i].predict(X[i]) for i in range(len(X))]
+
+        self.rmse_ = [calculate_rmse(y[i], y_f[i]) for i in range(len(y))]
+        self.r2_ = [calculate_r2(y[i], y_f[i]) for i in range(len(y))]
+        self.ate_ = [self.model_[i].params[1] for i in range(len(y))]
 
         self.rmse_ = np.average(self.rmse_, weights=n)
         self.r2_ = np.average(self.r2_, weights=n)
         self.ate_ = np.average(self.ate_, weights=n)
-
-        self.is_fitted_ = True
 
         return self
 
     def predict(self,
                 X: np.ndarray,
                 t: Optional[np.ndarray]=None):
-        """
-        Makes factual predictions with the simple outcome regression models.
+        """ Calculates factual predictions.
 
         Parameters
         ----------
         X : np.ndarray
-            The input samples of shape (n_samples, n_features).
-        t : Optional[np.ndarray]
-            The input treatment values of bool and shape (n_samples, n_of_treatments).
-            If t is None, then the first column of X is loaded as the treatment vector.
+            Covariates of shape (n_samples, n_features).
+        t : np.ndarray
+            Treatment indicators of type: bool and shape (n_samples, 1).
+            If t is None, then the first column of X is expected to be the treatment's indicator vector t.
 
         Returns
         -------
-        self : object
-            Returns self.
+        y : np.ndarray
+            Returns factual predictions.
         """
+
+        # Estimates the propensity scores.
         propensity_score = self.propensity_model_.predict(X)
-        X = np.hstack((t, X))
+
+        # Check and convert input.
+        if not (t is None):
+            X = np.hstack((t, X))
         X = sm.add_constant(X)
+        X = check_array(X)
 
-        y_pred = np.zeros(shape=(X.shape[0], ))
-
+        # Initializes factual predictions and the number of bins.
+        y_f = np.zeros(shape=(X.shape[0], ))
         n_of_bins = len(self.bins) - 1
+
+        # Uses the bin specific outcome regression model to predict the outcome
         for bin in range(n_of_bins):
             mask = (self.bins[bin] < propensity_score) & (propensity_score <= self.bins[bin + 1])
-            y_pred[mask] = self.model_[bin].predict(X[mask])
+            y_f[mask] = self.model_[bin].predict(X[mask])
 
-        return y_pred
+        return y_f
 
     def predict_cf(self,
                    X: np.ndarray,
                    t: Optional[np.ndarray]=None):
-        """
-        Makes counterfactual predictions with the simple outcome regression models.
+        """ Calculates the counterfactual predictions.
 
         Parameters
         ----------
         X : np.ndarray
-            The input samples of shape (n_samples, n_features).
+            Covariates of shape (n_samples, n_features).
         t : Optional[np.ndarray]
-            The input treatment values of bool and shape (n_samples, n_of_treatments).
-            If t is None, then the first column of X is loaded as the treatment vector.
+            Treatment indicators of type: bool and shape (n_samples, 1).
+            If t is None, then the first column of X is expected to be the treatment's indicator vector t.
 
         Returns
         -------
-        self : object
-            Returns self.
+        y : np.ndarray
+            Returns counterfactual predictions.
         """
-        if not (t is None):
-            t=~t
+
+        if t is None:
+            X[:, 0] = ~X[:, 0]
+        else:
+            t = ~t
 
         return self.predict(X, t)
 
     def predict_cate(self,
                      X: np.ndarray,
                      t: np.ndarray):
-        """
-        Estimates the conditional average treatment effect.
+        """Calculate the conditional average treatment effect.
 
         Parameters
         ----------
         X : np.ndarray
-            The input samples of shape (n_samples, n_features).
+            Covariates of shape (n_samples, n_features).
         t : np.ndarray
-            The input treatment values of bool and shape (n_samples, n_of_treatments).
+            Treatment indicators of type: bool and shape (n_samples, 1).
+            If t is None, then the first column of X is expected to be the treatment's indicator vector t.
 
         Returns
         -------
         cate : np.ndarray
-            Returns a vector of cate estimates.
+            Returns cate estimates.
         """
 
         cate = self.predict(X, t) - self.predict_cf(X, t)
@@ -202,15 +219,17 @@ class Blocking(BaseEstimator):
     def predict_ate(self,
                     X: np.ndarray,
                     t: Optional[np.ndarray]=None):
-        """
-        Estimates the average treatment effect.
+        """Estimates the average treatment effect.
+
+        The average treatment effect is calculated as the weighted average of bin specific treatment effects.
 
         Parameters
         ----------
-        X : Optional[np.ndarray]
-            The input samples of shape (n_samples, n_features).
+        X : np.ndarray
+            Covariates of shape (n_samples, n_features).
         t : Optional[np.ndarray]
-            The input treatment values of bool and shape (n_samples, n_of_treatments).
+            Treatment indicators of type: bool and shape (n_samples, 1).
+            If t is None, then the first column of X is expected to be the treatment's indicator vector t.
 
         Returns
         -------
@@ -218,6 +237,6 @@ class Blocking(BaseEstimator):
             Returns an ate estimate.
         """
 
-        X, _, n = self.stratify(X, test=True)
-        ate = [self.model_[i].params[1] for i in range(len(X))]
+        _, _, n = self.stratify(X, test=True)
+        ate = [self.model_[i].params[1] for i in range(len(n))]
         return np.average(ate, weights=n)

@@ -37,7 +37,7 @@ class IPW(BaseEstimator):
         X : np.ndarray
             The training covariates of shape (n_samples, n_features).
         y : np.ndarray
-            The training target values of shape shape (n_samples,).
+            The training target values of shape (n_samples,).
         t : Optional[np.ndarray]
             The training treatment indicators of type: bool and shape (n_samples, 1).
             If t is None, then the first column of X is expected to be the treatment's indicator vector t.
@@ -113,7 +113,7 @@ class IPW(BaseEstimator):
         ----------
         X : np.ndarray
             Covariates of shape (n_samples, n_features).
-        t : np.ndarray
+        t : Optional[np.ndarray]
             Treatment indicators of type: bool and shape (n_samples, 1).
             If t is None, then the first column of X is expected to be the treatment's indicator vector t.
 
@@ -189,7 +189,7 @@ class IPW(BaseEstimator):
         X : np.ndarray
             The input samples of shape (n_samples, n_features).
         y : np.ndarray
-            The target (true) values of shape shape (n_samples,).
+            The target (true) values of shape (n_samples,).
         t : Optional[np.ndarray]
             The input treatment values of bool and shape (n_samples, n_of_treatments).
 
