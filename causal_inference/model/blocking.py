@@ -5,6 +5,7 @@ This model implements the blocking estimator.
 import numpy as np
 import statsmodels.api as sm
 from sklearn.base import BaseEstimator, ClassifierMixin, TransformerMixin
+from typing import Optional, List
 from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
 from statsmodels.tools.eval_measures import rmse
 from sklearn.utils.multiclass import unique_labels
@@ -17,27 +18,39 @@ class Blocking(BaseEstimator):
     """
     A blocking estimator.
     """
-    def __init__(self, bins=None, propensity_model=None, random_state=None, max_iter=1000):
+    def __init__(self,
+                 bins: List[float]=None,
+                 propensity_model: PropensityScore=None):
+        """
+        Parameters
+        ----------
+        propensity_model: PropensityScore
+        PropensityScore model used to estimate the inverse probability weights.
+        """
+
         if bins is None:
             bins = [0, 0.2, 0.4, 0.6, 0.8, 1]
         self.bins = bins
         self.propensity_model = propensity_model
-        self.random_state = random_state
-        self.max_iter = max_iter
         self.is_causal = True
 
-    def stratify(self, X, y=None, t=None, test=False):
+    def stratify(self,
+                 X: np.ndarray,
+                 y: Optional[np.ndarray]=None,
+                 t: Optional[np.ndarray]=None,
+                 test: bool=False):
         """
-        Stratifies the sample into blocks.
+        Fits the weighting model to data.
 
         Parameters
         ----------
-        X : array-like, shape (n_samples, n_features)
-            The training input samples.
-        y : array-like, shape (n_samples,) or (n_samples, n_outputs)
-            The target values.
-        t : array-like, shape (n_samples,) or (n_samples, n_outputs)
-            The training input treatment values.
+        X : np.ndarray
+            The training input samples of shape (n_samples, n_features).
+        y : np.ndarray
+            The training target values of shape shape (n_samples,).
+        t : Optional[np.ndarray]
+            The training input treatment values of bool and shape (n_samples, n_of_treatments).
+            If t is None, then the first column of X is loaded as the treatment vector.
 
         Returns
         -------
@@ -66,18 +79,22 @@ class Blocking(BaseEstimator):
 
         return X, y, n
 
-    def fit(self, X, y, t=None):
+    def fit(self,
+            X: np.ndarray,
+            y: np.ndarray,
+            t: Optional[np.ndarray]=None):
         """
-        Fits the blocking estimator to data.
+        Fits the weighting model to data.
 
         Parameters
         ----------
-        X : array-like, shape (n_samples, n_features)
-            The training input samples.
-        y : array-like, shape (n_samples,) or (n_samples, n_outputs)
-            The target values.
-        t : array-like, shape (n_samples,) or (n_samples, n_outputs)
-            The training input treatment values.
+        X : np.ndarray
+            The training input samples of shape (n_samples, n_features).
+        y : np.ndarray
+            The training target values of shape shape (n_samples,).
+        t : Optional[np.ndarray]
+            The training input treatment values of bool and shape (n_samples, n_of_treatments).
+            If t is None, then the first column of X is loaded as the treatment vector.
 
         Returns
         -------
@@ -102,18 +119,19 @@ class Blocking(BaseEstimator):
 
         return self
 
-    def predict(self, X, t):
+    def predict(self,
+                X: np.ndarray,
+                t: Optional[np.ndarray]=None):
         """
-        Fits the blocking estimator to data.
+        Makes factual predictions with the simple outcome regression models.
 
         Parameters
         ----------
-        X : array-like, shape (n_samples, n_features)
-            The training input samples.
-        y : array-like, shape (n_samples,) or (n_samples, n_outputs)
-            The target values.
-        t : array-like, shape (n_samples,) or (n_samples, n_outputs)
-            The training input treatment values.
+        X : np.ndarray
+            The input samples of shape (n_samples, n_features).
+        t : Optional[np.ndarray]
+            The input treatment values of bool and shape (n_samples, n_of_treatments).
+            If t is None, then the first column of X is loaded as the treatment vector.
 
         Returns
         -------
@@ -133,29 +151,73 @@ class Blocking(BaseEstimator):
 
         return y_pred
 
-    def predict_cf(self, X, t=None):
+    def predict_cf(self,
+                   X: np.ndarray,
+                   t: Optional[np.ndarray]=None):
         """
         Makes counterfactual predictions with the simple outcome regression models.
 
         Parameters
         ----------
-        X : array-like, shape (n_samples, n_features)
-            The test input samples.
-
-        t : array-like of Boolean, shape (n_samples,) or (n_samples, n_treatments)
-            The training input treatment values.
+        X : np.ndarray
+            The input samples of shape (n_samples, n_features).
+        t : Optional[np.ndarray]
+            The input treatment values of bool and shape (n_samples, n_of_treatments).
+            If t is None, then the first column of X is loaded as the treatment vector.
 
         Returns
         -------
-        y : ndarray, shape (n_samples,)
-            Returns an array of predicted factual outcomes.
+        self : object
+            Returns self.
         """
         if not (t is None):
             t=~t
 
         return self.predict(X, t)
 
-    def predict_ate(self, X, t=None):
+    def predict_cate(self,
+                     X: np.ndarray,
+                     t: np.ndarray):
+        """
+        Estimates the conditional average treatment effect.
+
+        Parameters
+        ----------
+        X : np.ndarray
+            The input samples of shape (n_samples, n_features).
+        t : np.ndarray
+            The input treatment values of bool and shape (n_samples, n_of_treatments).
+
+        Returns
+        -------
+        cate : np.ndarray
+            Returns a vector of cate estimates.
+        """
+
+        cate = self.predict(X, t) - self.predict_cf(X, t)
+        cate[~t] = cate[~t] * -1
+
+        return cate
+
+    def predict_ate(self,
+                    X: np.ndarray,
+                    t: Optional[np.ndarray]=None):
+        """
+        Estimates the average treatment effect.
+
+        Parameters
+        ----------
+        X : Optional[np.ndarray]
+            The input samples of shape (n_samples, n_features).
+        t : Optional[np.ndarray]
+            The input treatment values of bool and shape (n_samples, n_of_treatments).
+
+        Returns
+        -------
+        ate : np.float
+            Returns an ate estimate.
+        """
+
         X, _, n = self.stratify(X, test=True)
         ate = [self.model_[i].params[1] for i in range(len(X))]
         return np.average(ate, weights=n)

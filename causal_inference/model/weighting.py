@@ -27,18 +27,22 @@ class IPW(BaseEstimator):
         self.propensity_model = propensity_model
         self.is_causal = True
 
-    def fit(self, X, y, t=None):
+    def fit(self,
+            X: np.ndarray,
+            y: np.ndarray,
+            t: Optional[np.ndarray]=None):
         """
         Fits the weighting model to data.
 
         Parameters
         ----------
-        X : array-like, shape (n_samples, n_features)
-            The training input samples.
-        y : array-like, shape (n_samples,) or (n_samples, n_outputs)
-            The training target values.
-        t : array-like, shape (n_samples,) or (n_samples, n_treatments)
-            The training input treatment values. Optional.
+        X : np.ndarray
+            The training input samples of shape (n_samples, n_features).
+        y : np.ndarray
+            The training target values of shape shape (n_samples,).
+        t : Optional[np.ndarray]
+            The training input treatment values of bool and shape (n_samples, n_of_treatments).
+            If t is None, then the first column of X is loaded as the treatment vector.
 
         Returns
         -------
@@ -67,22 +71,24 @@ class IPW(BaseEstimator):
 
         return self
 
-    def predict(self, X, t=None):
+    def predict(self,
+                X: np.ndarray,
+                t: Optional[np.ndarray]=None):
         """
         Makes factual predictions with the simple outcome regression models.
 
         Parameters
         ----------
-        X : array-like, shape (n_samples, n_features)
-            The test input samples.
-
-        t : array-like of Boolean, shape (n_samples,) or (n_samples, n_treatments)
-            The training input treatment values.
+        X : np.ndarray
+            The input samples of shape (n_samples, n_features).
+        t : Optional[np.ndarray]
+            The input treatment values of bool and shape (n_samples, n_of_treatments).
+            If t is None, then the first column of X is loaded as the treatment vector.
 
         Returns
         -------
-        y : ndarray, shape (n_samples,)
-            Returns an array of predicted factual outcomes.
+        self : object
+            Returns self.
         """
 
         X = check_array(X)
@@ -93,31 +99,95 @@ class IPW(BaseEstimator):
 
         return self.model_.predict(X)
 
-    def predict_cf(self, X, t=None):
+    def predict_cf(self,
+                   X: np.ndarray,
+                   t: Optional[np.ndarray]=None):
         """
         Makes counterfactual predictions with the simple outcome regression models.
 
         Parameters
         ----------
-        X : array-like, shape (n_samples, n_features)
-            The test input samples.
-
-        t : array-like of Boolean, shape (n_samples,) or (n_samples, n_treatments)
-            The training input treatment values.
+        X : np.ndarray
+            The input samples of shape (n_samples, n_features).
+        t : Optional[np.ndarray]
+            The input treatment values of bool and shape (n_samples, n_of_treatments).
+            If t is None, then the first column of X is loaded as the treatment vector.
 
         Returns
         -------
-        y : ndarray, shape (n_samples,)
-            Returns an array of predicted factual outcomes.
+        self : object
+            Returns self.
         """
         if not (t is None):
             t=~t
 
         return self.predict(X, t)
 
+    def predict_cate(self,
+                     X: np.ndarray,
+                     t: np.ndarray):
+        """
+        Estimates the conditional average treatment effect.
 
-    def predict_ate(self, X=None, t=None):
+        Parameters
+        ----------
+        X : np.ndarray
+            The input samples of shape (n_samples, n_features).
+        t : np.ndarray
+            The input treatment values of bool and shape (n_samples, n_of_treatments).
+
+        Returns
+        -------
+        cate : np.ndarray
+            Returns a vector of cate estimates.
+        """
+
+        cate = self.predict(X, t) - self.predict_cf(X, t)
+        cate[~t] = cate[~t] * -1
+
+        return cate
+
+    def predict_ate(self,
+                    X: Optional[np.ndarray]=None,
+                    t: Optional[np.ndarray]=None):
+        """
+        Estimates the average treatment effect.
+
+        Parameters
+        ----------
+        X : Optional[np.ndarray]
+            The input samples of shape (n_samples, n_features).
+        t : Optional[np.ndarray]
+            The input treatment values of bool and shape (n_samples, n_of_treatments).
+
+        Returns
+        -------
+        ate : np.float
+            Returns an ate estimate.
+        """
+
         return self.model_.params[1]
 
-    def score(self, data, targets, treatment):
-        return calculate_rmse(targets, self.predict(data)[treatment])
+    def score(self,
+              X: np.ndarray,
+              y: np.ndarray,
+              t: Optional[np.ndarray]=None):
+        """
+        Performs model evaluation by calculating the RMSE.
+
+        Parameters
+        ----------
+        X : np.ndarray
+            The input samples of shape (n_samples, n_features).
+        y : np.ndarray
+            The target (true) values of shape shape (n_samples,).
+        t : Optional[np.ndarray]
+            The input treatment values of bool and shape (n_samples, n_of_treatments).
+
+        Returns
+        -------
+        ate : np.float
+            Returns an ate estimate.
+        """
+
+        return calculate_rmse(y_true=y, y_pred=self.predict(X=X, t=t))

@@ -1,5 +1,5 @@
 """
-This module implements simple outcome regression (1-OLS or S-OLS).
+This module implements simple outcome regression (1-OLS / S-OLS).
 """
 
 import numpy as np

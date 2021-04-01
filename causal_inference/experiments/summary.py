@@ -1,53 +1,50 @@
-"""
-This module generates a summary of the results of an experiment.
+""" This module generates and saves results of an experiment.
 """
 
 import numpy as np
 import pandas as pd
 
-def summary(df_results, corrected=False, imported_from_r=False, imported_from_cfr=False):
+def summary(df_results: pd.DataFrame,
+            imported_from_r: bool=False,
+            imported_from_cfr: bool=False):
     """
-    Generates a pd.DataFrame with a summary of the experiment results.
+    Generates a pd.DataFrame with a summary of the experiment's results.
+
+    Parameters
+    ----------
+    df_results : pd.DataFrame
+        Results of an experiment. Results include metrics and treatment effects for each bootstrap sample.
+    imported_from_r : bool
+        If True, results of an experiment will be converted from R.
+    imported_from_cfr : bool
+        If True, results of an experiment will be converted from Python 2.
+
+    Returns
+    -------
+    df_summary : pd.DataFrame
+        Returns a summary of the experiment's results.
     """
 
+    # Convert results
     if imported_from_r:
         df_results = convert_results_r(df_results)
 
     if imported_from_cfr:
         df_results = convert_results_cfr(df_results)
 
+    # Initialize the summary
     df_summary = pd.DataFrame(data=[])
 
-    for column in df_results:
-        values = [np.mean(df_results[column]),
-                  np.percentile(df_results[column], q=2.5, interpolation='higher'),
-                  np.percentile(df_results[column], q=97.5, interpolation='lower')]
-        df_summary[column] = values
-    """
-    if corrected:
-        ate = [np.mean(results['ate']),
-               np.percentile(results['ate'], q=2.5, interpolation='higher'),
-               np.percentile(results['ate'], q=97.5, interpolation='lower')]
-        rmse = [np.mean(results['rmse']),
-                np.percentile(results['rmse'], q=2.5, interpolation='higher'),
-                np.percentile(results['rmse'], q=97.5, interpolation='lower')]
-        r2 = [np.mean(results['r2']),
-              np.percentile(results['r2'], q=2.5, interpolation='higher'),
-              np.percentile(results['r2'], q=97.5, interpolation='lower')]
-    else:
-        ate = [np.mean(results['ate']),
-               np.percentile(results['ate'], q=2.5),
-               np.percentile(results['ate'], q=97.5)]
-        rmse = [np.mean(results['rmse']),
-                np.percentile(results['rmse'], q=2.5),
-                np.percentile(results['rmse'], q=97.5)]
-        r2 = [np.mean(results['r2']),
-              np.percentile(results['r2'], q=2.5),
-              np.percentile(results['r2'], q=97.5)]
+    # For each metric (error metric or treatment effect) generate the summary (mean + 95% CI)
+    for metric in df_results:
+        summary = [np.mean(df_results[metric]),
+                   np.percentile(df_results[metric], q=2.5, interpolation='higher'),
+                   np.percentile(df_results[metric], q=97.5, interpolation='lower')]
+        df_summary[metric] = summary
 
-    """
     df_summary = df_summary.T.round(2)
     df_summary.columns = ['mean', 'CI_start', 'CI_end']
+
     return df_summary
 
 

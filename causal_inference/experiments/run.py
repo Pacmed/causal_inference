@@ -1,5 +1,4 @@
-"""
-Runs, stores and saves an experiment.
+""" Runs, stores and saves an experiment.
 """
 
 import os
@@ -16,17 +15,14 @@ from causal_inference.model.utils import calculate_rmse, check_treatment_indicat
 
 
 class Experiment:
-    """
-    A class used to represent an Experiment.
-
-    The experiment consists of training a selected model on each of the bootstrapped training samples and making a
-    prediction on the test set.
+    """ Trains, evaluates and tests a model on bootstrap samples.
 
     Attributes
     ----------
     pred_ : pd.DataFrame
-        a data frame containing the test treatment vector, the factual and the counterfactual prediction made for each
-        observation in the first bootstrap sample.
+        a data frame containing the treatment indicator, the factual and the counterfactual
+         prediction for each observation in the first bootstrap test sample, with a model trained on the first
+         bootstrap sample.
     results_ : pd.DataFrame
         a data frame containing the accuracy metrics and the treatment effect for each of the boostrap sample.
     summary_ : pd.DataFrame
@@ -35,7 +31,7 @@ class Experiment:
     Methods
     -------
     run()
-        Runs the experiment on data.
+        Runs an experiment on data.
     save()
         Saves the experiment.
     """
@@ -43,21 +39,21 @@ class Experiment:
     def __init__(self,
                  causal_model: BaseEstimator,
                  propensity_model: Optional[PropensityScore]=None,
-                 n_of_experiments: Optional[int]=100):
+                 n_of_iterations: Optional[int]=100):
         """
         Parameters
         ----------
         causal_model : BaseEstimator
-            A causal model implemented in the package or any BaseEstimator.
+            A causal model implemented in the package 'causal_inference' or any BaseEstimator with scikit-learn's API.
         propensity_model : Optional[PropensityScore]
-            A propensity score model implemented in the package.
-        n_of_experiments : Optional[int]
+            A propensity score model implemented in the 'causal_inference' package.
+        n_of_iterations : Optional[int]
             The maximum number of bootstrap samples to be used.
         """
 
         self.causal_model = causal_model
         self.propensity_model = propensity_model
-        self.n_of_experiments = n_of_experiments
+        self.n_of_iterations = n_of_iterations
         self.t = None
         self.f_ = None
         self.cf_ = None
@@ -67,8 +63,6 @@ class Experiment:
         self.rmse_test = []
         self.ate_test = []
 
-
-
     def run(self,
             y_train: np.ndarray,
             t_train: np.ndarray,
@@ -76,24 +70,24 @@ class Experiment:
             y_test: np.ndarray,
             t_test: np.ndarray,
             X_test: np.ndarray):
-        """ Runs experiments on bootstrap samples.
+        """ Runs an experiment on bootstrap samples.
 
         Parameters
         ----------
         y_train : np.ndarray
-            The training target values of shape shape (n_samples, n_of_bootstrapped_samples).
+            The training target values of shape (n_samples, n_of_bootstrapped_samples).
         t_train : np.ndarray
-            The training input treatment values of bool and shape
-             (n_samples, n_of_treatments, n_of_bootstrapped_samples). The treatment indicator should be a bool.
+            The training input treatment indicators (bool: True for treated, False for not treated) of shape
+             (n_samples, n_of_bootstrapped_samples) or (n_samples, 1, n_of_bootstrapped_samples).
         X_train: np.ndarray
-            The training input samples of shape (n_samples, n_features, n_of_bootstrapped_samples).
+            The training input covariates of shape (n_samples, n_features, n_of_bootstrapped_samples).
         y_test: np.ndarray
             The test target values of shape shape (n_samples, n_of_bootstrapped_samples).
         t_test: np.ndarray
-            The test input treatment values of bool and shape
-             (n_samples, n_of_treatments, n_of_bootstrapped_samples). The treatment indicator should be a bool.
+            The training input treatment indicators (bool: True for treated, False for not treated) of shape
+             (n_samples, n_of_bootstrapped_samples) or (n_samples, 1, n_of_bootstrapped_samples).
         X_test: np.ndarray
-            The test input samples of shape (n_samples, n_features, n_of_bootstrapped_samples).
+            The test input covariates of shape (n_samples, n_features, n_of_bootstrapped_samples).
 
         Returns
         -------
@@ -101,20 +95,26 @@ class Experiment:
             Returns self.
         """
 
-        for experiment in range(self.n_of_experiments):
+        self.n_of_iterations = np.min(self.n_of_iterations, y_train, y_test, X_train, X_test, t_train, t_test)
+
+        for sample in range(self.n_of_iterations):
 
             #################
             ###   TRAIN   ###
             #################
 
-            y, t, X = y_train[:, experiment], t_train[:, experiment], X_train[:, :, experiment]
+            # Load data
+            y, t, X = y_train[:, sample], t_train[:, sample], X_train[:, :, sample]
             y, t = y.reshape(len(y), ), t.reshape(len(t), 1)
 
+            # Check input
             t = check_treatment_indicator(t)
             self.causal_model = check_model(self.causal_model)
 
+            # Fit model
             causal_model = self.causal_model.fit(X, y, t)
 
+            # Store metrics/effects
             self.r2_train.append(causal_model.r2_)
             self.rmse_train.append(causal_model.rmse_)
             self.ate_train.append(causal_model.ate_)
@@ -123,19 +123,23 @@ class Experiment:
             ###   TEST   ###
             ################
 
-            y, t, X = y_test[:, experiment], t_test[:, experiment], X_test[:, :, experiment]
+            # Load data
+            y, t, X = y_test[:, sample], t_test[:, sample], X_test[:, :, sample]
             y, t = y.reshape(len(y), ), t.reshape(len(t), 1)
 
+            # Check input
             t = check_treatment_indicator(t)
 
-            y_pred = causal_model.predict(X, t)
+            # Make factual prediction
+            y_f = causal_model.predict(X, t)
 
+            # Save the predictions of the first experiment
             if self.t is None:
-                # Saves the predictions of the first experiment
                 self.t = t
-                self.f_ = y_pred
+                self.f_ = y_f
                 self.cf_ = causal_model.predict_cf(X, t)
 
+            # Store metrics/effects
             self.rmse_test.append(calculate_rmse(y, y_pred))
             self.ate_test.append(causal_model.predict_ate(X, t))
 
@@ -153,32 +157,42 @@ class Experiment:
                    'rmse_test': self.rmse_test,
                    'ate_test': self.ate_test}
 
+        # Store predictions
         self.pred_ = pd.DataFrame(data=pred)
+
+        # Store results
         self.results_ = pd.DataFrame(data=results)
+
+        # Store summary
         self.summary_ = summary(self.results_)
 
         return self
 
     def save(self,
              path:str):
-        """Saves the experiment.
+        """Saves the attributes of an experiment.
 
         Parameters
         ----------
         path : str
-            Directory to save the experiment in.
+            Directory to save the attributes in.
 
         Returns
         -------
         none : None
-
         """
-        os.chdir(path)
-        os.getcwd()
 
-        np.savetxt(f'pred_{self.causal_model}.csv', self.pred_, delimiter=",", fmt='%1.2f')
-        np.savetxt(f'results_{self.causal_model}.csv', self.results_, delimiter=",", fmt='%1.2f')
-        np.savetxt(f'summary_{self.causal_model}.csv', self.summary__, delimiter=",", fmt='%1.2f')
+        os.chdir(path)
+        print("Directory changed to:", os.getcwd())
+
+        model_name = f'{self.causal_model}'
+        model_name = model_name[0: model_name.index("(")]
+
+        np.savetxt(f'pred_{model_name}.csv', self.pred_, delimiter=",", fmt='%1.2f')
+        np.savetxt(f'results_{model_name}.csv', self.results_, delimiter=",", fmt='%1.2f')
+        np.savetxt(f'summary_{model_name}.csv', self.summary__, delimiter=",", fmt='%1.2f')
+
+        # TO DO: save model's hyperparameters
 
         print('Experiment saved!')
 
