@@ -1,11 +1,10 @@
-"""
-This module implements inverse probability weighting (IPW).
+"""This module implements inverse probability weighting (IPW).
 """
 
 import numpy as np
 import statsmodels.api as sm
 
-from typing import Optional, List
+from typing import Optional
 from sklearn.base import BaseEstimator
 from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
 
@@ -31,18 +30,17 @@ class IPW(BaseEstimator):
             X: np.ndarray,
             y: np.ndarray,
             t: Optional[np.ndarray]=None):
-        """
-        Fits the weighting model to data.
+        """Fits the inverse probability weighting model to data.
 
         Parameters
         ----------
         X : np.ndarray
-            The training input samples of shape (n_samples, n_features).
+            The training covariates of shape (n_samples, n_features).
         y : np.ndarray
             The training target values of shape shape (n_samples,).
         t : Optional[np.ndarray]
-            The training input treatment values of bool and shape (n_samples, n_of_treatments).
-            If t is None, then the first column of X is loaded as the treatment vector.
+            The training treatment indicators of type: bool and shape (n_samples, 1).
+            If t is None, then the first column of X is expected to be the treatment's indicator vector t.
 
         Returns
         -------
@@ -50,96 +48,106 @@ class IPW(BaseEstimator):
             Returns self.
         """
 
+        # If the propensity model is not specified, initialize it.
         if self.propensity_model is None:
-            self.propensity_model = PropensityScore(self.max_iter, self.clipping, self.random_state)
+            self.propensity_model = PropensityScore()
 
+        # Fit the propensity and calculate weights
         self.propensity_model_ = self.propensity_model.fit(X, t)
         ipw_weights = self.propensity_model_.predict_ipw_weights(X, t)
 
+        # Convert and check input
         if not (t is None):
             X = np.hstack((t, X))
         X = sm.add_constant(X)
         X, y = check_X_y(X, y)
 
+        # Fit a weighted linear model with inverse probability weights
         self.model_ = sm.WLS(y, sm.add_constant(X), weights=ipw_weights).fit()
-        y_pred = self.model_.predict(X)
-        self.rmse_ = calculate_rmse(y, y_pred)
+        self.is_fitted_ = True
+
+        # Calculate prediciton
+        y_f = self.model_.predict(X)
+
+        # Store result
+        self.rmse_ = calculate_rmse(y_true=y, y_pred=y_f)
         self.r2_ = calculate_r2(y, y_pred) #TO DO: check for r2 correctness across models
         self.ate_ = self.predict_ate()
-
-        self.is_fitted_ = True
 
         return self
 
     def predict(self,
                 X: np.ndarray,
                 t: Optional[np.ndarray]=None):
-        """
-        Makes factual predictions with the simple outcome regression models.
+        """ Calculates factual predictions.
 
         Parameters
         ----------
         X : np.ndarray
-            The input samples of shape (n_samples, n_features).
-        t : Optional[np.ndarray]
-            The input treatment values of bool and shape (n_samples, n_of_treatments).
-            If t is None, then the first column of X is loaded as the treatment vector.
+            Covariates of shape (n_samples, n_features).
+        t : np.ndarray
+            Treatment indicators of type: bool and shape (n_samples, 1).
+            If t is None, then the first column of X is expected to be the treatment's indicator vector t.
 
         Returns
         -------
-        self : object
-            Returns self.
+        y : np.ndarray
+            Returns factual predictions.
         """
 
-        X = check_array(X)
+        # Check and convert input
         check_is_fitted(self, 'is_fitted_')
         if not (t is None):
             X = np.hstack((t, X))
         X = sm.add_constant(X)
+        X = check_array(X)
 
         return self.model_.predict(X)
 
     def predict_cf(self,
                    X: np.ndarray,
                    t: Optional[np.ndarray]=None):
-        """
-        Makes counterfactual predictions with the simple outcome regression models.
+        """ Calculates the counterfactual predictions.
 
         Parameters
         ----------
         X : np.ndarray
-            The input samples of shape (n_samples, n_features).
-        t : Optional[np.ndarray]
-            The input treatment values of bool and shape (n_samples, n_of_treatments).
-            If t is None, then the first column of X is loaded as the treatment vector.
+            Covariates of shape (n_samples, n_features).
+        t : np.ndarray
+            Treatment indicators of type: bool and shape (n_samples, 1).
+            If t is None, then the first column of X is expected to be the treatment's indicator vector t.
 
         Returns
         -------
-        self : object
-            Returns self.
+        y : np.ndarray
+            Returns counterfactual predictions.
         """
-        if not (t is None):
-            t=~t
+
+        # Invert the treatment indicator.
+        if t is None:
+            X[:, 0] = ~X[:, 0]
+        else:
+            t = ~t
 
         return self.predict(X, t)
 
     def predict_cate(self,
                      X: np.ndarray,
                      t: np.ndarray):
-        """
-        Estimates the conditional average treatment effect.
+        """Calculate the conditional average treatment effect.
 
         Parameters
         ----------
         X : np.ndarray
-            The input samples of shape (n_samples, n_features).
+            Covariates of shape (n_samples, n_features).
         t : np.ndarray
-            The input treatment values of bool and shape (n_samples, n_of_treatments).
+            Treatment indicators of type: bool and shape (n_samples, 1).
+            If t is None, then the first column of X is expected to be the treatment's indicator vector t.
 
         Returns
         -------
         cate : np.ndarray
-            Returns a vector of cate estimates.
+            Returns cate estimates.
         """
 
         cate = self.predict(X, t) - self.predict_cf(X, t)
@@ -156,9 +164,10 @@ class IPW(BaseEstimator):
         Parameters
         ----------
         X : Optional[np.ndarray]
-            The input samples of shape (n_samples, n_features).
+            Covariates of shape (n_samples, n_features).
         t : Optional[np.ndarray]
-            The input treatment values of bool and shape (n_samples, n_of_treatments).
+            Treatment indicators of type: bool and shape (n_samples, 1).
+            If t is None, then the first column of X is expected to be the treatment's indicator vector t.
 
         Returns
         -------
@@ -186,8 +195,8 @@ class IPW(BaseEstimator):
 
         Returns
         -------
-        ate : np.float
-            Returns an ate estimate.
+        z : np.float
+            Returns the RMSE.
         """
 
         return calculate_rmse(y_true=y, y_pred=self.predict(X=X, t=t))
