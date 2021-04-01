@@ -1,11 +1,10 @@
-"""
-This module implements simple outcome regression (1-OLS / S-OLS).
+""" This module implements the simple outcome regression (1-OLS / S-OLS).
 """
 
 import numpy as np
 import statsmodels.api as sm
 from sklearn.base import BaseEstimator
-from typing import Optional, List
+from typing import Optional
 from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
 
 from causal_inference.model.utils import calculate_rmse, calculate_r2
@@ -28,12 +27,12 @@ class OLS(BaseEstimator):
         Parameters
         ----------
         X : np.ndarray
-            The training input samples of shape (n_samples, n_features).
+            The training covariates of shape (n_samples, n_features).
         y : np.ndarray
             The training target values of shape shape (n_samples,).
         t : Optional[np.ndarray]
-            The training input treatment values of bool and shape (n_samples, n_of_treatments).
-            If t is None, then the first column of X is loaded as the treatment vector.
+            The training treatment indicators of type: bool and shape (n_samples, 1).
+            If t is None, then the first column of X is expected to be the treatment's indicator vector t.
 
         Returns
         -------
@@ -41,6 +40,7 @@ class OLS(BaseEstimator):
             Returns self.
         """
 
+        # Convert inputs
         if t is None:
             pass
         else:
@@ -48,14 +48,17 @@ class OLS(BaseEstimator):
 
         X = sm.add_constant(X)
 
-        # Fit the Outcome Regression model
+        # Check inputs
+        X, y = check_X_y(X, y)
+
+        # Fit the model
         self.model_ = sm.OLS(y, X).fit()
         self.is_fitted_ = True
 
-        # Additionally, store metrics and effects calcualated on the training data.
-        y_pred = self.model_.predict(X)
-        self.rmse_ = calculate_rmse(y, y_pred)
-        self.r2_ = calculate_r2(y, y_pred) # TO DO: check the r2 metric consistency across models
+        # Store metrics/effects on the training data.
+        y_f = self.model_.predict(X)
+        self.rmse_ = calculate_rmse(y_true=y, y_pred=y_f)
+        self.r2_ = calculate_r2(y_true=y, y_pred=y_f)
         self.ate_ = self.predict_ate()
 
         return self
@@ -63,25 +66,25 @@ class OLS(BaseEstimator):
     def predict(self,
                 X: np.ndarray,
                 t: Optional[np.ndarray]=None):
-        """
-        Makes factual predictions with the simple outcome regression models.
+        """ Calculates factual predictions.
 
         Parameters
         ----------
         X : np.ndarray
-            The input samples of shape (n_samples, n_features).
-        t : Optional[np.ndarray]
-            The input treatment values of bool and shape (n_samples, n_of_treatments).
-            If t is None, then the first column of X is loaded as the treatment vector.
+            Covariates of shape (n_samples, n_features).
+        t : np.ndarray
+            Treatment indicators of type: bool and shape (n_samples, 1).
+            If t is None, then the first column of X is expected to be the treatment's indicator vector t.
 
         Returns
         -------
-        self : object
-            Returns self.
+        y : np.ndarray
+            Returns factual predictions.
         """
 
         check_is_fitted(self, 'is_fitted_')
 
+        # Convert inputs
         if t is None:
             pass
         else:
@@ -89,28 +92,31 @@ class OLS(BaseEstimator):
 
         X = sm.add_constant(X)
 
+        # Check inputs
+        X = check_array(X)
+
         return self.model_.predict(X)
 
     def predict_cf(self,
                    X: np.ndarray,
                    t: np.ndarray=None):
-        """
-        Makes counterfactual predictions with the simple outcome regression models.
+        """ Calculates the counterfactual predictions.
 
         Parameters
         ----------
         X : np.ndarray
-            The input samples of shape (n_samples, n_features).
-        t : Optional[np.ndarray]
-            The input treatment values of bool and shape (n_samples, n_of_treatments).
-            If t is None, then the first column of X is loaded as the treatment vector.
+            Covariates of shape (n_samples, n_features).
+        t : np.ndarray
+            Treatment indicators of type: bool and shape (n_samples, 1).
+            If t is None, then the first column of X is expected to be the treatment's indicator vector t.
 
         Returns
         -------
-        self : object
-            Returns self.
+        y : np.ndarray
+            Returns counterfactual predictions.
         """
 
+        # Invert the treatment indicator.
         if t is None:
             X[:, 0] = ~X[:, 0]
         else:
@@ -121,20 +127,20 @@ class OLS(BaseEstimator):
     def predict_cate(self,
                      X: np.ndarray,
                      t: np.ndarray):
-        """
-        Estimates the conditional average treatment effect.
+        """Calculate the conditional average treatment effect.
 
         Parameters
         ----------
         X : np.ndarray
-            The input samples of shape (n_samples, n_features).
+            Covariates of shape (n_samples, n_features).
         t : np.ndarray
-            The input treatment values of bool and shape (n_samples, n_of_treatments).
+            Treatment indicators of type: bool and shape (n_samples, 1).
+            If t is None, then the first column of X is expected to be the treatment's indicator vector t.
 
         Returns
         -------
         cate : np.ndarray
-            Returns a vector of cate estimates.
+            Returns cate estimates.
         """
 
         cate = self.predict(X, t) - self.predict_cf(X, t)
@@ -151,9 +157,10 @@ class OLS(BaseEstimator):
         Parameters
         ----------
         X : Optional[np.ndarray]
-            The input samples of shape (n_samples, n_features).
+            Covariates of shape (n_samples, n_features).
         t : Optional[np.ndarray]
-            The input treatment values of bool and shape (n_samples, n_of_treatments).
+            Treatment indicators of type: bool and shape (n_samples, 1).
+            If t is None, then the first column of X is expected to be the treatment's indicator vector t.
 
         Returns
         -------
@@ -181,8 +188,8 @@ class OLS(BaseEstimator):
 
         Returns
         -------
-        ate : np.float
-            Returns an ate estimate.
+        z : np.float
+            Returns the RMSE.
         """
 
         return calculate_rmse(y_true=y, y_pred=self.predict(X=X, t=t))
