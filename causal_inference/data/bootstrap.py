@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 
+from typing import Optional
+
 import sys, os
 
 import seaborn as sns
@@ -17,8 +19,37 @@ from scipy.stats import wasserstein_distance
 from scipy import stats
 
 
-def bootstrap(y, t, X, n_of_samples=100, split_frac=0.95, method='train'):
+def bootstrap(y: np.ndarray,
+              t: np.ndarray,
+              X: np.ndarray,
+              n_of_samples: Optional[int]=100,
+              sample_size: Optional[float]=0.95,
+              method: Optional[str]='train'):
     """ Creates bootstrap samples of the outcome, treatment indicator and covariates matrices.
+
+    Parameters
+    ----------
+    y : np.ndarray
+        Outcome array.
+    t : np.ndarray
+        Treatment indicator array of type: bool.
+    X : np.ndarray
+        Covariates array.
+    n_of_samples: Optional[int]
+        Number of bootstrapped samples to create.
+    sample_size: Optional[float]
+        The fraction of observations in the data to be included in each sample.
+    method: 'train' or 'test'
+        It method == 'train', then bootsrapping is performed. If method == 'test' only the shape is being change.
+    Returns
+    -------
+    y: np.ndarray
+        Bootstrapped outcome array. The last dimension is 'n_of_sample'.
+    t: np.ndarray
+        Bootstrapped treatment indicator array. The last dimension is 'n_of_sample'.
+    X: np.ndarray
+        Bootstrapped covariates array. The last dimension is 'n_of_sample'.
+
     """
 
     # Split the data to stratify on the treatment indicator.
@@ -30,15 +61,14 @@ def bootstrap(y, t, X, n_of_samples=100, split_frac=0.95, method='train'):
     # Initialize bootstrap samples
     X_treated_bootstrapped, y_treated_bootstrapped, X_control_bootstrapped, y_control_bootstrapped  = [], [], [], []
 
-    # Calculate the number of rows in each experiment
-    sample_size_treated = np.floor(split_frac * X_treated.shape[0]).astype(int)
-    sample_size_control = np.floor(split_frac * X_control.shape[0]).astype(int)
+    # Calculate the number of treated and control observations in each sample
+    sample_size_treated = np.floor(sample_size * X_treated.shape[0]).astype(int)
+    sample_size_control = np.floor(sample_size * X_control.shape[0]).astype(int)
 
-    # Create bootstrapped experiments
     for i in range(n_of_samples):
 
         if method == 'train':
-            # For the train set we bootstrap the training set
+            # If the training set is the input, we bootstrap it
             idx_treated = np.random.choice(X_treated.shape[0], sample_size_treated, replace=True)
             idx_control = np.random.choice(X_control.shape[0], sample_size_control, replace=True)
 
@@ -48,22 +78,22 @@ def bootstrap(y, t, X, n_of_samples=100, split_frac=0.95, method='train'):
             y_control_bootstrapped.append(y_control[idx_control])
 
         if method == 'test':
-            # For the test set we do not modify the data, only change the shape
+            # If the test set is the input, we only change the shape, to make it consistent with the training samples.
             X_treated_bootstrapped.append(X_treated)
             y_treated_bootstrapped.append(y_treated)
             X_control_bootstrapped.append(X_control)
             y_control_bootstrapped.append(y_control)
 
 
-    # Convert lists to numpy arrays (faster than appending arrays) and
-    # move axes to (X.shape[0], X.shape[1], n_of_experiments), (y.shape[0], y.shape[1], n_of_experiments)
+    # Convert lists to numpy arrays and
+    # convert axes to (X.shape[0], X.shape[1], n_of_sample), (y.shape[0], n_of_sample).
 
     X_treated_bootstrapped = np.moveaxis(np.array(X_treated_bootstrapped), 0, 2)
     y_treated_bootstrapped = np.moveaxis(np.array(y_treated_bootstrapped), 0, 1)
     X_control_bootstrapped = np.moveaxis(np.array(X_control_bootstrapped), 0, 2)
     y_control_bootstrapped = np.moveaxis(np.array(y_control_bootstrapped), 0, 1)
 
-    # Merge arrays
+    # Merge treated and control observations
     X_bootstrapped = np.concatenate((X_treated_bootstrapped, X_control_bootstrapped), axis=0)
     y_bootstrapped = np.concatenate((y_treated_bootstrapped, y_control_bootstrapped), axis=0)
     t_bootstrapped = np.concatenate((
