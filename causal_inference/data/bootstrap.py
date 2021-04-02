@@ -1,22 +1,9 @@
-import pandas as pd
+"""This module implements bootstrapping of the training and test arrays.
+"""
+
 import numpy as np
 
 from typing import Optional
-
-import sys, os
-
-import seaborn as sns
-import matplotlib.pyplot as plt
-
-from causalinference import CausalModel
-
-from sklearn.impute import SimpleImputer
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import roc_auc_score
-from importlib import reload
-
-from scipy.stats import wasserstein_distance
-from scipy import stats
 
 
 def bootstrap(y: np.ndarray,
