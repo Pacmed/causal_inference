@@ -4,7 +4,7 @@ Provide utility functions including error metrics for the 'model' package.
 
 import numpy as np
 from sklearn.base import BaseEstimator
-from causal_inference.model.make_causal import CausalModel
+from sklearn.utils.validation import check_X_y
 
 def calculate_rmse(y_true, y_pred):
     """ Calculates the root mean squared error.
@@ -63,31 +63,37 @@ def check_treatment_indicator(t:np.ndarray):
         print('Boolean treatment indicator expected. Attempts conversion...')
         t = t == 1
 
-    if not np.array_equal(t_train[:, 1], t_train[:, 1].astype(bool)):
+    if not np.array_equal(t, t.astype(bool)):
         raise TypeError
 
     return t
 
-def check_model(model:BaseEstimator):
-    """Checks if the model is a correct causal model.
+def check_X_t(X, t=None):
+    """Ensures that the covariate matrix and treatment indicator are split.
 
-        If not, then attempts conversion.
+    If t is None, then the first column of X is assumed to be the treatment indicator.
 
-        Parameters
-        ----------
-        model : BaseEstimator
-            An estimator.
+    Parameters
+    ----------
+    X : np.ndarray
+        Array of covariates or array of covariates with treatment indicator in the first column.
+    t : Optional[np.ndarray]
+        Array of treatment indicators.
 
-        Returns
-        -------
-        model : np.ndarray
-            A causal estimator.
-        """
+    Returns
+    -------
+    X : np.ndarray
+        Array of covariates.
+    t : np.ndarray
+        Array of boolean treatent indicators.
+    """
 
-    try:
-        assert model.is_causal
-    except:
-        model = CausalModel(model=model)
-        assert model.is_causal
+    if t is None:
+        t = (X[:, 0] == 1).reshape((X[:, 0].shape[0], 1))
+        X = X[:, 1:]
+    else:
+        pass
 
-    return model
+    return X, t
+
+

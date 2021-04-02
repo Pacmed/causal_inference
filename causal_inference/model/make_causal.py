@@ -3,12 +3,13 @@
 import numpy as np
 import statsmodels.api as sm
 from sklearn.base import BaseEstimator, ClassifierMixin, TransformerMixin
+from typing import Optional
 from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
 from statsmodels.tools.eval_measures import rmse
 from sklearn.utils.multiclass import unique_labels
 from sklearn.metrics import euclidean_distances
 
-from causal_inference.model.utils import calculate_rmse, calculate_r2
+from causal_inference.model.utils import calculate_rmse, calculate_r2, check_X_t
 
 class CausalModel(BaseEstimator):
     """Wraps a model with scikit-learn API to be causal e.g. accept treatments to the fit function."""
@@ -35,17 +36,18 @@ class CausalModel(BaseEstimator):
         self : object
             Returns self.
         """
-
-        if not (t is None):
+        if t is None:
+            pass
+        else:
             X = np.hstack((t, X))
 
-        self.model_ = self.model.fit()
+        self.model_ = self.model.fit(X, y)
 
         # Additionally storing the training metrics and effect
         y_pred = self.model_.predict(X)
         self.rmse_ = calculate_rmse(y, y_pred)
         self.r2_ = calculate_r2(y, y_pred) # TO DO: check the r2 metric consistency across models
-        self.ate_ = self.predict_ate()
+        self.ate_ = self.predict_ate(X)
 
         self.is_fitted_ = True
 
@@ -69,8 +71,9 @@ class CausalModel(BaseEstimator):
             Returns an array of predicted factual outcomes.
         """
 
-        #check_is_fitted(self, 'is_fitted_')
-        if not (t is None):
+        if t is None:
+            pass
+        else:
             X = np.hstack((t, X))
 
         return self.model_.predict(X)
@@ -92,20 +95,107 @@ class CausalModel(BaseEstimator):
         y : ndarray, shape (n_samples,)
             Returns an array of predicted factual outcomes.
         """
-        if not (t is None):
-            t=~t
 
-        return self.predict(X, t)
+        X, t = check_X_t(X, t)
 
-    def predict_cate(self, X=None, t=None):
+        return self.predict(X, ~t)
+
+    def predict_cate(self,
+                     X: np.ndarray,
+                     t: Optional[np.ndarray]=None):
+        """Calculate the conditional average treatment effect.
+
+        Parameters
+        ----------
+        X : np.ndarray
+            Covariates of shape (n_samples, n_features).
+        t : np.ndarray
+            Treatment indicators of type: bool and shape (n_samples, 1).
+            If t is None, then the first column of X is expected to be the treatment's indicator vector t.
+
+        Returns
+        -------
+        cate : np.ndarray
+            Returns cate estimates.
+        """
 
         cate = self.predict(X, t) - self.predict_cf(X, t)
+
+        X, t = check_X_t(X, t)
+        cate = cate.reshape((len(cate), 1))
         cate[~t] = cate[~t] * -1
 
         return cate
 
-    def predict_ate(self, X, t):
+    def predict_ate(self,
+                    X: np.ndarray,
+                    t: Optional[np.ndarray]=None):
+        """
+        Calculate the average treatment effect.
+
+        Parameters
+        ----------
+        X : Optional[np.ndarray]
+            Covariates of shape (n_samples, n_features).
+        t : Optional[np.ndarray]
+            Treatment indicators of type: bool and shape (n_samples, 1).
+            If t is None, then the first column of X is expected to be the treatment's indicator vector t.
+
+        Returns
+        -------
+        ate : np.float
+            Returns an ate estimate.
+        """
+
         return np.mean(self.predict_cate(X, t))
 
-    def score(self, y, X, t):
+    def score(self,
+              X: np.ndarray,
+              y: np.ndarray,
+              t: Optional[np.ndarray]=None):
+        """
+        Performs model evaluation by calculating the RMSE.
+
+        Parameters
+        ----------
+        X : np.ndarray
+            Covariates of shape (n_samples, n_features).
+        y : np.ndarray
+            The target (true) values of shape (n_samples,).
+        t : Optional[np.ndarray]
+            Treatment indicator of type: bool and shape (n_samples, 1).
+
+        Returns
+        -------
+        z : np.float
+            Returns the RMSE.
+        """
+
+        X, t = check_X_t(X, t)
+
         return calculate_rmse(y_true=y, y_pred=self.predict(X, t))
+
+def check_model(model:BaseEstimator):
+    """Checks if the model is a correct causal model.
+
+        If not, then attempts conversion.
+
+        Parameters
+        ----------
+        model : BaseEstimator
+            An estimator.
+
+        Returns
+        -------
+        model : CausalModel
+            A causal estimator.
+        """
+
+    try:
+        assert model.is_causal
+    except:
+        model = CausalModel(model=model)
+        assert model.is_causal
+
+    return model
+

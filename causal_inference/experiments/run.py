@@ -11,8 +11,8 @@ from sklearn.base import BaseEstimator
 
 from causal_inference.model.propensity import PropensityScore
 from causal_inference.experiments.summary import summary
-from causal_inference.model.utils import calculate_rmse, check_treatment_indicator, check_model
-
+from causal_inference.model.make_causal import check_model
+from causal_inference.model.utils import calculate_rmse, check_treatment_indicator
 
 class Experiment:
     """ Trains, evaluates and tests a model on bootstrap samples.
@@ -95,8 +95,6 @@ class Experiment:
             Returns self.
         """
 
-        self.n_of_iterations = np.min(self.n_of_iterations, y_train, y_test, X_train, X_test, t_train, t_test)
-
         for sample in range(self.n_of_iterations):
 
             #################
@@ -140,7 +138,7 @@ class Experiment:
                 self.cf_ = causal_model.predict_cf(X, t)
 
             # Store metrics/effects
-            self.rmse_test.append(calculate_rmse(y, y_pred))
+            self.rmse_test.append(calculate_rmse(y, y_f))
             self.ate_test.append(causal_model.predict_ate(X, t))
 
         ###################

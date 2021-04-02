@@ -7,7 +7,7 @@ from sklearn.base import BaseEstimator
 from typing import Optional
 from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
 
-from causal_inference.model.utils import calculate_rmse, calculate_r2
+from causal_inference.model.utils import calculate_rmse, calculate_r2, check_X_t
 
 
 class OLS(BaseEstimator):
@@ -116,13 +116,9 @@ class OLS(BaseEstimator):
             Returns counterfactual predictions.
         """
 
-        # Invert the treatment indicator.
-        if t is None:
-            X[:, 0] = ~X[:, 0]
-        else:
-            t=~t
+        X, t = check_X_t(X, t)
 
-        return self.predict(X, t)
+        return self.predict(X, ~t)
 
     def predict_cate(self,
                      X: np.ndarray,
@@ -143,6 +139,8 @@ class OLS(BaseEstimator):
             Returns cate estimates.
         """
 
+        X, t = check_X_t(X, t)
+
         cate = self.predict(X, t) - self.predict_cf(X, t)
         cate[~t] = cate[~t] * -1
 
@@ -152,7 +150,7 @@ class OLS(BaseEstimator):
                     X: Optional[np.ndarray]=None,
                     t: Optional[np.ndarray]=None):
         """
-        Estimates the average treatment effect.
+        Calculate the average treatment effect.
 
         Parameters
         ----------
@@ -180,16 +178,18 @@ class OLS(BaseEstimator):
         Parameters
         ----------
         X : np.ndarray
-            The input samples of shape (n_samples, n_features).
+            Covariates of shape (n_samples, n_features).
         y : np.ndarray
             The target (true) values of shape (n_samples,).
         t : Optional[np.ndarray]
-            The input treatment values of bool and shape (n_samples, n_of_treatments).
+            Treatment indicator of type: bool and shape (n_samples, 1).
 
         Returns
         -------
         z : np.float
             Returns the RMSE.
         """
+
+        X, t = check_X_t(X, t)
 
         return calculate_rmse(y_true=y, y_pred=self.predict(X=X, t=t))

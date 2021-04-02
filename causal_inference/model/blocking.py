@@ -11,7 +11,7 @@ from sklearn.utils.multiclass import unique_labels
 from sklearn.metrics import euclidean_distances
 
 from causal_inference.model.propensity import PropensityScore
-from causal_inference.model.utils import calculate_rmse, calculate_r2
+from causal_inference.model.utils import calculate_rmse, calculate_r2, check_X_t
 
 class Blocking(BaseEstimator):
     """ A blocking model.
@@ -185,16 +185,13 @@ class Blocking(BaseEstimator):
             Returns counterfactual predictions.
         """
 
-        if t is None:
-            X[:, 0] = ~X[:, 0]
-        else:
-            t = ~t
+        X, t = check_X_t(X, t)
 
-        return self.predict(X, t)
+        return self.predict(X, ~t)
 
     def predict_cate(self,
                      X: np.ndarray,
-                     t: np.ndarray):
+                     t: Optional[np.ndarray]=None):
         """Calculate the conditional average treatment effect.
 
         Parameters
@@ -211,6 +208,8 @@ class Blocking(BaseEstimator):
             Returns cate estimates.
         """
 
+        X, t = check_X_t(X, t)
+
         cate = self.predict(X, t) - self.predict_cf(X, t)
         cate[~t] = cate[~t] * -1
 
@@ -219,7 +218,7 @@ class Blocking(BaseEstimator):
     def predict_ate(self,
                     X: np.ndarray,
                     t: Optional[np.ndarray]=None):
-        """Estimates the average treatment effect.
+        """Calculate the average treatment effect.
 
         The average treatment effect is calculated as the weighted average of bin specific treatment effects.
 
@@ -240,3 +239,30 @@ class Blocking(BaseEstimator):
         _, _, n = self.stratify(X, test=True)
         ate = [self.model_[i].params[1] for i in range(len(n))]
         return np.average(ate, weights=n)
+
+    def score(self,
+              X: np.ndarray,
+              y: np.ndarray,
+              t: Optional[np.ndarray] = None):
+        """
+        Performs model evaluation by calculating the RMSE.
+
+        Parameters
+        ----------
+        X : np.ndarray
+            Covariates of shape (n_samples, n_features).
+        y : np.ndarray
+            The target (true) values of shape (n_samples,).
+        t : Optional[np.ndarray]
+            Treatment indicator of type: bool and shape (n_samples, 1).
+
+        Returns
+        -------
+        z : np.float
+            Returns the RMSE.
+        """
+
+        X, t = check_X_t(X, t)
+
+        return calculate_rmse(y_true=y, y_pred=self.predict(X=X, t=t))
+
