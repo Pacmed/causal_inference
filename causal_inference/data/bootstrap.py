@@ -30,13 +30,12 @@ def bootstrap(y: np.ndarray,
         It method == 'train', then bootsrapping is performed. If method == 'test' only the shape is being change.
     Returns
     -------
-    y: np.ndarray
+    y_bootstrapped: np.ndarray
         Bootstrapped outcome array. The last dimension is 'n_of_sample'.
-    t: np.ndarray
+    t_bootstrapped: np.ndarray
         Bootstrapped treatment indicator array. The last dimension is 'n_of_sample'.
-    X: np.ndarray
+    X_bootstrapped: np.ndarray
         Bootstrapped covariates array. The last dimension is 'n_of_sample'.
-
     """
 
     # Split the data to stratify on the treatment indicator.
