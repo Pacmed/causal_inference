@@ -1,4 +1,5 @@
-"""This module loads the data into the correct format.
+"""This module transforms raw data with all outcomes and covariates extracted from the data present into data
+ ready to be used in the experiment.
 """
 
 import pandas as pd
