@@ -1,5 +1,4 @@
-"""
-This module estimates the propensity score and calculate inverse probability weights
+"""This module estimates the propensity score and calculate inverse probability weights.
 """
 
 import numpy as np
@@ -99,8 +98,23 @@ class PropensityScore(BaseEstimator):
 
         return weights
 
-# To be added:
+# TO DO: move the function to visualizations/plot_propensity after merging branch add-boxplot-new
 def save_propensity_plot(t, X, path):
+    """Shows the distribution of the estimated propensity scores.
+
+    Parameters
+    ----------
+    t : np.ndarray
+        Treatment indicator of type: bool.
+    X : np.ndarray
+        Covariates.
+    path : str
+        Name of the figure to be saved.
+
+    Returns
+    -------
+    z : None
+    """
     experiment = 0
     t, X = t[:, experiment].reshape(len(t[:, experiment]), 1).flatten(), X[:, :, experiment]
     pscore = LogisticRegression(random_state=1234,
@@ -122,3 +136,5 @@ def save_propensity_plot(t, X, path):
 
     sns.displot(df_plot, x="Propensity_score", hue="Group", stat="probability")
     plt.savefig(path)
+
+    return None

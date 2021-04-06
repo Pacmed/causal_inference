@@ -21,7 +21,7 @@ class Experiment:
     ----------
     pred_ : pd.DataFrame
         a data frame containing the treatment indicator, the factual and the counterfactual
-         prediction for each observation in the first bootstrap test sample, with a model trained on the first
+         prediction for each observation in the first bootstrap test sample, obtained with a model trained on the first
          bootstrap sample.
     results_ : pd.DataFrame
         a data frame containing the accuracy metrics and the treatment effect for each of the boostrap sample.
@@ -78,14 +78,14 @@ class Experiment:
             The training target values of shape (n_samples, n_of_bootstrapped_samples).
         t_train : np.ndarray
             The training input treatment indicators (bool: True for treated, False for not treated) of shape
-             (n_samples, n_of_bootstrapped_samples) or (n_samples, 1, n_of_bootstrapped_samples).
+             (n_samples, n_of_bootstrapped_samples).
         X_train: np.ndarray
             The training input covariates of shape (n_samples, n_features, n_of_bootstrapped_samples).
         y_test: np.ndarray
             The test target values of shape shape (n_samples, n_of_bootstrapped_samples).
         t_test: np.ndarray
-            The training input treatment indicators (bool: True for treated, False for not treated) of shape
-             (n_samples, n_of_bootstrapped_samples) or (n_samples, 1, n_of_bootstrapped_samples).
+            The test treatment indicators (bool: True for treated, False for not treated) of shape
+             (n_samples, n_of_bootstrapped_samples).
         X_test: np.ndarray
             The test input covariates of shape (n_samples, n_features, n_of_bootstrapped_samples).
 

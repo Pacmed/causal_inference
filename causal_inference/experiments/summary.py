@@ -1,4 +1,4 @@
-""" This module generates and saves results of an experiment.
+""" This module generates a summary of the results of an experiment.
 """
 
 import numpy as np

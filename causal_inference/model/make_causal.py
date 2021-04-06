@@ -55,7 +55,7 @@ class CausalModel(BaseEstimator):
 
     def predict(self, X, t=None):
         """
-        Makes factual predictions with the simple outcome regression models.
+        Makes factual predictions.
 
         Parameters
         ----------
@@ -80,7 +80,7 @@ class CausalModel(BaseEstimator):
 
     def predict_cf(self, X, t=None):
         """
-        Makes counterfactual predictions with the simple outcome regression models.
+        Makes counterfactual predictions.
 
         Parameters
         ----------

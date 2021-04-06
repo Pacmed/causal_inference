@@ -47,7 +47,7 @@ class Blocking(BaseEstimator):
         y : np.ndarray
             Target values of shape (n_samples,).
         t : Optional[np.ndarray]
-            The training treatment indicators of type: bool and shape (n_samples, 1).
+            Treatment indicators of type: bool and shape (n_samples, 1).
             If t is None, then the first column of X is expected to be the treatment's indicator vector t.
         test : bool
             If True, then a stratification of the test set is performed. The propensity score are being calculated
@@ -55,8 +55,12 @@ class Blocking(BaseEstimator):
 
         Returns
         -------
-        self : object
-            Returns self.
+        X : list
+            List of stratified covariates of shape (n_samples, n_features).
+        y : list
+            List of stratified target values of shape (n_samples,).
+        t : list
+            List of stratified treatment indicators of type: bool and shape (n_samples, 1).
         """
 
         # If a propensity model is not specified, initialize with clipping set to 0.1
@@ -80,6 +84,7 @@ class Blocking(BaseEstimator):
 
         n_of_bins = len(self.bins) - 1
 
+        # Stratifies the covariates into bins.
         X = [X[(self.bins[i] < propensity_score) & (propensity_score <= self.bins[i+1])] for i in range(n_of_bins)]
         n = [len(X[i]) for i in range(len(X))]
 
