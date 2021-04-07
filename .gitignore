@@ -1,2 +1,2 @@
-.idea
-causal_inference/__pycache__
+.*
+!/.gitignore
