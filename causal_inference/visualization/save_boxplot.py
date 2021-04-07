@@ -43,12 +43,27 @@ def save_boxplot(figure_name:str,
     if xlabel is None:
         xlabel = "Estimated Average Treatment Effect"
 
-    df = _load_results_to_plot(load_dir, file_name_contain=file_name_contain)
+    df = _load_results_to_plot(load_dir=load_dir, file_name_contain=file_name_contain)
     _plot_and_save(df, xlabel=xlabel, save_dir=save_dir, figure_name=figure_name)
 
     return None
 
-def _load_results_to_plot(dir, file_name_contain):
+def _load_results_to_plot(load_dir, file_name_contain):
+    """Function to load results required for making the figure.
+
+    Parameters
+    ----------
+    load_dir : str
+        Directory to load results from.
+    file_name_contain : str
+        Loads only files containing 'file_name_contain' in the name of the file.
+
+    Returns
+    -------
+    df : pd.DataFrame
+        A DataFrame with columns: Method - str indicating the models used for ATE prediction and ATE - estimated ATE;
+         and rows corresponding to a single iteration of an experiment.
+    """
 
     # Initialize results
     df = pd.DataFrame([])
@@ -58,7 +73,7 @@ def _load_results_to_plot(dir, file_name_contain):
     else:
         match_str = f'results_*{file_name_contain}*.csv'
 
-    for result in os.listdir(dir):
+    for result in os.listdir(load_dir):
         if fnmatch.fnmatch(result, match_str):
             print("Loading:", result)
             model_name = re.search('_(.+?)_', result).group(1)
@@ -71,8 +86,28 @@ def _load_results_to_plot(dir, file_name_contain):
 
     return df
 
-def _plot_and_save(df, xlabel, save_dir, figure_name):
+def _plot_and_save(df, figure_name, save_dir, xlabel, show_points:bool=False):
+    """Shows and saves the generated boxplot.
 
+        Parameters
+        ----------
+        df : pd.DataFrame
+            A pd.DataFrame with column 'Method' indicating which model as used for ATE prediction and a columns ATE
+            indicating the value of the estimated treatment effect.
+        figure_name : str
+            Name of the file in which the figure is saved. For example, if you want to save the boxplot as
+            'boxplot.png', then 'figure_name="boxplot"'.
+        save_dir : str
+            Directory to save the figure to. If None then the figure is saved to 'load_dir'.
+        xlabel : str
+            Name of the figure's x-axis.
+        show_points : bool
+            If True, shows points indicating individual ATE estimates.
+
+        Returns
+        -------
+        z : None
+        """
     f, ax = plt.subplots(figsize=(7, 6))
 
     sns.boxplot(x="ATE", y="Method", data=df, orient='h',
@@ -83,8 +118,8 @@ def _plot_and_save(df, xlabel, save_dir, figure_name):
                          "markeredgecolor":"dimgrey",
                          "markersize":"5"})
 
-    # Add in points to show each observation
-    #sns.stripplot(x="ATE", y="Method", data=df_plot, size=3, color=".35", linewidth=0)
+    if show_points:
+        sns.stripplot(x="ATE", y="Method", data=df_plot, size=3, color=".35", linewidth=0)
 
     # Tweak the visual presentation
     ax.xaxis.grid(True)
