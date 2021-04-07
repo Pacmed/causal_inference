@@ -18,6 +18,9 @@ def save_boxplot(figure_name:str,
                  file_name_contain:str=None):
     """Saves a boxplot of estimated average treatment effects for a suite of experiments.
 
+    Each file is expected to contain ATE estimates in the first column with each row being a single iteration
+    of an experiment.
+
     Parameters
     ----------
     figure_name : str
