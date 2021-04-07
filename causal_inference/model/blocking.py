@@ -13,6 +13,11 @@ from sklearn.metrics import euclidean_distances
 from causal_inference.model.propensity import PropensityScore
 from causal_inference.model.utils import calculate_rmse, calculate_r2, check_X_t
 
+### CONSTANTS ###
+
+# Default values for bins.
+BINS = [0, 0.4, 0.6, 0.75, 1]
+
 class Blocking(BaseEstimator):
     """ A blocking model.
     """
@@ -27,7 +32,7 @@ class Blocking(BaseEstimator):
         """
 
         if bins is None:
-            bins = [0, 0.4, 0.6, 0.75, 1]
+            bins = BINS
 
         self.bins = bins
         self.propensity_model = propensity_model
@@ -59,8 +64,8 @@ class Blocking(BaseEstimator):
             List of stratified covariates of shape (n_samples, n_features).
         y : list
             List of stratified target values of shape (n_samples,).
-        t : list
-            List of stratified treatment indicators of type: bool and shape (n_samples, 1).
+        n : list
+            Number of observations in each bin.
         """
 
         # If a propensity model is not specified, initialize with clipping set to 0.1
@@ -242,6 +247,7 @@ class Blocking(BaseEstimator):
         """
 
         _, _, n = self.stratify(X, test=True)
+        # List of treatment indicator's coefficients
         ate = [self.model_[i].params[1] for i in range(len(n))]
         return np.average(ate, weights=n)
 

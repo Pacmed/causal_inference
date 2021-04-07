@@ -166,7 +166,7 @@ class OLS(BaseEstimator):
             Returns an ate estimate.
         """
 
-        return self.model_.params[1]
+        return self.model_.params[1] # OLS coefficient of the treatment indicator
 
     def score(self,
               X: np.ndarray,

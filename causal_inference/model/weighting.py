@@ -71,7 +71,7 @@ class IPW(BaseEstimator):
 
         # Store result
         self.rmse_ = calculate_rmse(y_true=y, y_pred=y_f)
-        self.r2_ = calculate_r2(y, y_pred) #TO DO: check for r2 correctness across models
+        self.r2_ = calculate_r2(y_true=y, y_pred=y_f)
         self.ate_ = self.predict_ate()
 
         return self

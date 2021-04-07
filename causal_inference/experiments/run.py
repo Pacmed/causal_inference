@@ -12,7 +12,7 @@ from sklearn.base import BaseEstimator
 from causal_inference.model.propensity import PropensityScore
 from causal_inference.experiments.summary import summary
 from causal_inference.model.make_causal import check_model
-from causal_inference.model.utils import calculate_rmse, check_treatment_indicator
+from causal_inference.model.utils import calculate_rmse, calculate_r2, check_treatment_indicator
 
 class Experiment:
     """ Trains, evaluates and tests a model on bootstrap samples.
@@ -61,6 +61,7 @@ class Experiment:
         self.rmse_train = []
         self.ate_train = []
         self.rmse_test = []
+        self.r2_test = []
         self.ate_test = []
 
     def run(self,
@@ -139,6 +140,7 @@ class Experiment:
 
             # Store metrics/effects
             self.rmse_test.append(calculate_rmse(y, y_f))
+            self.r2_test.append(calculate_r2(y, y_f))
             self.ate_test.append(causal_model.predict_ate(X, t))
 
         ###################
@@ -153,6 +155,7 @@ class Experiment:
                    'r2_train': self.r2_train,
                    'ate_train': self.ate_train,
                    'rmse_test': self.rmse_test,
+                   'r2_test': self.r2_test,
                    'ate_test': self.ate_test}
 
         # Store predictions
