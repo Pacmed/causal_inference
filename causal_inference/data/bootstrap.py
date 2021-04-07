@@ -14,6 +14,10 @@ def bootstrap(y: np.ndarray,
               method: Optional[str]='train'):
     """ Creates bootstrap samples of the outcome, treatment indicator and covariates matrices.
 
+    As in the experiment we only bootstrap the training sample, when the test sample is the input (method == 'test), the
+     function 'bootstrap' only changes the shape of the sample, in order to ensure consistency with the training sample
+      shape.
+
     Parameters
     ----------
     y : np.ndarray
