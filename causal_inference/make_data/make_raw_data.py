@@ -1,5 +1,8 @@
 """ This module extracts raw data from the covid data warehouse.
 """
+import os
+
+import pandas as pd
 
 from datetime import datetime
 from data_warehouse_utils.dataloader import DataLoader
@@ -26,19 +29,22 @@ class UseCaseLoader(DataLoader):
 
 
     """
-    def __init__(self, path:str):
+    def __init__(self):
         super().__init__()
-        self.path = path
-        self.datetime = datetime.today().strftime('%Y-%m-%d-%H:%M:%S')
 
-    def get_position_measurements(self):
+    def get_position_measurements(self, path, path_or_buf):
         """ Extracts position measurements.
         """
 
-        path_or_buf = 'position_measurements.csv'
         df_measurements = self.get_range_measurements(parameters=['position'],
                                                       columns=COLUMNS_POSITION)
-        df_measurements.to_csv(path_or_buf=path_or_buf)
+
+        # TO DO: fix dtypes
+
+        cwd = os.getcwd()
+        os.chdir(path=path)
+        df_measurements.to_csv(path_or_buf=path_or_buf, index=False)
+        os.chdir(path=cwd)
 
         return None
 
