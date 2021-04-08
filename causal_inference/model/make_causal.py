@@ -1,119 +1,99 @@
-""" This module implements the simple outcome regression (1-OLS / S-OLS).
-"""
+"""Converts any scikit model into a causal simple model (S-learner)."""
 
 import numpy as np
 import statsmodels.api as sm
-from sklearn.base import BaseEstimator
+from sklearn.base import BaseEstimator, ClassifierMixin, TransformerMixin
 from typing import Optional
 from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
+from statsmodels.tools.eval_measures import rmse
+from sklearn.utils.multiclass import unique_labels
+from sklearn.metrics import euclidean_distances
 
 from causal_inference.model.utils import calculate_rmse, calculate_r2, check_X_t
 
+class CausalModel(BaseEstimator):
+    """Wraps a model with scikit-learn API to be causal e.g. accept treatments to the fit function."""
 
-class OLS(BaseEstimator):
-    """ A simple outcome regression model.
-    """
-
-    def __init__(self):
+    def __init__(self, model:BaseEstimator):
+        self.model = model
         self.is_causal = True
 
-    def fit(self,
-            X: np.ndarray,
-            y: np.ndarray,
-            t: Optional[np.ndarray]=None):
+    def fit(self, X, y, t=None):
         """
-        Fits the simple outcome regression to training data.
+        Fits the model to data.
 
         Parameters
         ----------
-        X : np.ndarray
-            The training covariates of shape (n_samples, n_features).
-        y : np.ndarray
-            The training target values of shape (n_samples,).
-        t : Optional[np.ndarray]
-            The training treatment indicators of type: bool and shape (n_samples, 1).
-            If t is None, then the first column of X is expected to be the treatment's indicator vector t.
+        X : array-like, shape (n_samples, n_features)
+            The training input samples.
+        y : array-like, shape (n_samples,) or (n_samples, n_outputs)
+            The training target values.
+        t : array-like, shape (n_samples,) or (n_samples, n_treatments)
+            The training input treatment values.
 
         Returns
         -------
         self : object
             Returns self.
         """
-
-        # Convert inputs
         if t is None:
             pass
         else:
             X = np.hstack((t, X))
 
-        X = sm.add_constant(X)
+        self.model_ = self.model.fit(X, y)
 
-        # Check inputs
-        X, y = check_X_y(X, y)
+        # Additionally storing the training metrics and effect
+        y_pred = self.model_.predict(X)
+        self.rmse_ = calculate_rmse(y, y_pred)
+        self.r2_ = calculate_r2(y, y_pred) # TO DO: check the r2 metric consistency across models
+        self.ate_ = self.predict_ate(X)
 
-        # Fit the model
-        self.model_ = sm.OLS(y, X).fit()
         self.is_fitted_ = True
-
-        # Store metrics/effects on the training data.
-        y_f = self.model_.predict(X)
-        self.rmse_ = calculate_rmse(y_true=y, y_pred=y_f)
-        self.r2_ = calculate_r2(y_true=y, y_pred=y_f)
-        self.ate_ = self.predict_ate()
 
         return self
 
-    def predict(self,
-                X: np.ndarray,
-                t: Optional[np.ndarray]=None):
-        """ Calculates factual predictions.
+    def predict(self, X, t=None):
+        """
+        Makes factual predictions.
 
         Parameters
         ----------
-        X : np.ndarray
-            Covariates of shape (n_samples, n_features).
-        t : np.ndarray
-            Treatment indicators of type: bool and shape (n_samples, 1).
-            If t is None, then the first column of X is expected to be the treatment's indicator vector t.
+        X : array-like, shape (n_samples, n_features)
+            The test input samples.
+
+        t : array-like of Boolean, shape (n_samples,) or (n_samples, n_treatments)
+            The training input treatment values.
 
         Returns
         -------
-        y : np.ndarray
-            Returns factual predictions.
+        y : ndarray, shape (n_samples,)
+            Returns an array of predicted factual outcomes.
         """
 
-        check_is_fitted(self, 'is_fitted_')
-
-        # Convert inputs
         if t is None:
             pass
         else:
             X = np.hstack((t, X))
 
-        X = sm.add_constant(X)
-
-        # Check inputs
-        X = check_array(X)
-
         return self.model_.predict(X)
 
-    def predict_cf(self,
-                   X: np.ndarray,
-                   t: np.ndarray=None):
-        """ Calculates the counterfactual predictions.
+    def predict_cf(self, X, t=None):
+        """
+        Makes counterfactual predictions.
 
         Parameters
         ----------
-        X : np.ndarray
-            Covariates of shape (n_samples, n_features).
-        t : Optional[np.ndarray]
-            Treatment indicators of type: bool and shape (n_samples, 1).
-            If t is None, then the first column of X is expected to be the treatment's indicator vector t.
+        X : array-like, shape (n_samples, n_features)
+            The test input samples.
+
+        t : array-like of Boolean, shape (n_samples,) or (n_samples, n_treatments)
+            The training input treatment values.
 
         Returns
         -------
-        y : np.ndarray
-            Returns counterfactual predictions.
+        y : ndarray, shape (n_samples,)
+            Returns an array of predicted factual outcomes.
         """
 
         X, t = check_X_t(X, t)
@@ -122,7 +102,7 @@ class OLS(BaseEstimator):
 
     def predict_cate(self,
                      X: np.ndarray,
-                     t: np.ndarray):
+                     t: Optional[np.ndarray]=None):
         """Calculate the conditional average treatment effect.
 
         Parameters
@@ -139,15 +119,16 @@ class OLS(BaseEstimator):
             Returns cate estimates.
         """
 
-        X, t = check_X_t(X, t)
-
         cate = self.predict(X, t) - self.predict_cf(X, t)
+
+        X, t = check_X_t(X, t)
+        cate = cate.reshape((len(cate), 1))
         cate[~t] = cate[~t] * -1
 
         return cate
 
     def predict_ate(self,
-                    X: Optional[np.ndarray]=None,
+                    X: np.ndarray,
                     t: Optional[np.ndarray]=None):
         """
         Calculate the average treatment effect.
@@ -166,7 +147,7 @@ class OLS(BaseEstimator):
             Returns an ate estimate.
         """
 
-        return self.model_.params[1] # OLS coefficient of the treatment indicator
+        return np.mean(self.predict_cate(X, t))
 
     def score(self,
               X: np.ndarray,
@@ -192,4 +173,29 @@ class OLS(BaseEstimator):
 
         X, t = check_X_t(X, t)
 
-        return calculate_rmse(y_true=y, y_pred=self.predict(X=X, t=t))
+        return calculate_rmse(y_true=y, y_pred=self.predict(X, t))
+
+def check_model(model:BaseEstimator):
+    """Checks if the model is a correct causal model.
+
+        If not, then attempts conversion.
+
+        Parameters
+        ----------
+        model : BaseEstimator
+            An estimator.
+
+        Returns
+        -------
+        model : CausalModel
+            A causal estimator.
+        """
+
+    try:
+        assert model.is_causal
+    except:
+        model = CausalModel(model=model)
+        assert model.is_causal
+
+    return model
+
