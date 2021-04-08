@@ -11,7 +11,7 @@ from datetime import timedelta, date
 from typing import Optional, List
 from data_warehouse_utils.dataloader import DataLoader
 
-from causal_inference.create_experiment.utils import groupby_measurements
+from causal_inference.make_data.utils import groupby_measurements
 
 
 def add_outcome(dl: DataLoader,
