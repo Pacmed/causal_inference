@@ -33,10 +33,12 @@ def make_proning_sessions(path):
 
 
 def make_proning_sessions_batch(df, batch_val):
-    
-    df = df.loc[df[BATCH_COL] == batch_val, COLUMNS_POSITION]
-    
-    return None
+    pass
+
+
+def add_hash_session_id(session_id, effective_value, effective_value_next, batch_id):
+    pass
+
     
     
     
