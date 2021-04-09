@@ -7,10 +7,11 @@ import pandas as pd
 from datetime import datetime
 from data_warehouse_utils.dataloader import DataLoader
 
+from causal_inference.make_data.make_proning_sessions import make_proning_sessions
+
 # CONST
 COLUMNS_POSITION = ['hash_patient_id', 'episode_id', 'start_timestamp', 'end_timestamp', 'pacmed_subname',
-                    'effective_value', 'numerical_value', 'is_correct_unit_yn', 'unit_name',
-                    'hospital', 'ehr']
+                    'effective_value', 'is_correct_unit_yn', 'hospital', 'ehr']
 
 
 class UseCaseLoader(DataLoader):
@@ -32,22 +33,20 @@ class UseCaseLoader(DataLoader):
     def __init__(self):
         super().__init__()
 
-    def get_position_measurements(self, path, path_or_buf):
+    def get_position_measurements(self, path):
         """ Extracts position measurements.
         """
 
-        df_measurements = self.get_range_measurements(parameters=['position'],
-                                                      columns=COLUMNS_POSITION)
-
-        # TO DO: fix dtypes
-
-        cwd = os.getcwd()
-        os.chdir(path=path)
-        df_measurements.to_csv(path_or_buf=path_or_buf, index=False)
-        os.chdir(path=cwd)
+        self.get_range_measurements(parameters=['position'], columns=COLUMNS_POSITION).to_csv(path, index=False)
 
         return None
 
+    @staticmethod
+    def get_observations(load_path, save_path):
+
+        make_proning_sessions(load_path).to_csv(path_or_buf=save_path, index=False)
+
+        return None
 
 
 

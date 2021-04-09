@@ -1,9 +1,17 @@
-"""This module creates proning sessions.
+"""This loads observations for an experiment.
+
+Each observation in a unique proning or supine session.
+
+Observations are created in batches. Data is split into batches using the BATCH_COL.
+
+The raw position measurements data is first loaded and then converted into a dataframe with each row being an
+ observation.
 """
 
 import pandas as pd
 import numpy as np
 
+from typing import Optional
 # CONST
 from causal_inference.make_data.make_raw_data import COLUMNS_POSITION # Desired data format
 
@@ -14,36 +22,65 @@ DTYPE = {'hash_patient_id': object, 'episode_id': object, 'pacmed_subname': obje
          'ehr':object} # Required dtypes
 
 
-def make_proning_sessions(path):
-    """ Loads raw position measurement data and returns a data frame which an observation per row.
-    Each observation is a unique prone or supine session. """
-    
-    # Load raw position data.
-    df = pd.read_csv(path, dtype=DTYPE, index_col=False, date_parser=['start_timestamp', 'end_timestamp'])
+def make_proning_sessions(path:str, n_of_batches:Optional[str]=None):
+    """ Transforms raw position measurement data into a data frame with each row being a unique prone or supine session.
 
-    # Check columns consistency
-    if not df.columns.to_list() in COLUMNS_POSITION:
-        print("The loaded file is not compatible. Use UseCaseLoader to extract raw data!")
+    Parameters
+    ----------
+    path : str
+        A path to the raw position measurement data extracted with 'get_position_measurements' method of UseCaseLoader
+        class.
+    n_of_batches : Optional[int]
+        Number of batches to be included. Use only for testing purposes.
+    Returns
+    -------
+    df_session : pd.DataFrame
+        Dataframe with with each row being a unique prone or supine session
+    """
     
-    # Process proning sessions in batches (use BATCH_COL to split the data)
-    df_sessions = [make_proning_sessions_batch(df, batch_val) for _, batch_val in enumerate(df[BATCH_COL].to_list())]
+    df = load_raw_position_data(path)
+    if not (n_of_batches is None): df = subset_data(df, n_of_batches)
+    
+    # Use BATCH_COL to split the data into batches
+    batch_list = df[BATCH_COL].to_list()
+    df_sessions = [make_proning_sessions_batch(df.loc[df[BATCH_COL] == batch_val])
+                   for _, batch_val in enumerate(batch_list)]
 
     if df_sessions:
         df_sessions = pd.concat(df_sessions).reset_index(drop=True)
 
     return df_sessions
 
+def load_raw_position_data(path):
 
-def make_proning_sessions_batch(df, batch_val):
+    df = pd.read_csv(path, date_parser=['start_timestamp', 'end_timestamp'])
 
-    df = df.loc[df[BATCH_COL] == batch_val]
+    df.start_timestamp = df.start_timestamp.astype('datetime64[ns]')
+    df.end_timestamp = df.end_timestamp.astype('datetime64[ns]')
+
+    # Ensure column consistency
+    if df.columns.to_list() != COLUMNS_POSITION:
+        print("The loaded file is not compatible. Use UseCaseLoader to extract raw data!")
+
+    return df
+
+def save_processed_sessions_data(df, path):
+
+    df.to_csv(path_or_buf=path, index=False)
+
+    return None
+
+def make_proning_sessions_batch(df):
+
     df_sessions = df[df['pacmed_subname'] == 'position_body']
+    if len(df_sessions.index) == 0: return pd.DataFrame([])
+
     df_sessions = add_column_hash_session_id(df_sessions)
     df_sessions = sessions_groupby(df_sessions)
+    df_sessions = adjust_for_bed_rotation(df_sessions, df[df['pacmed_subname'] == 'position_bed'])
     df_sessions = add_column_duration_hour(df_sessions)
 
     return df_sessions
-
 
 def add_column_hash_session_id(df):
 
@@ -54,11 +91,11 @@ def add_column_hash_session_id(df):
     df['session_id'] = False
     df['effective_value_previous'] = False
     df.loc[:, 'effective_value_previous'] = df.loc[:, 'effective_value'].shift(1)
-    df.loc[1:, 'new_session'] = df.loc[1:, 'effective_value'] != df.loc[1: ,'effective_value_previous']
+    df.loc[1:, 'session_id'] = df.loc[1:, 'effective_value'] != df.loc[1: ,'effective_value_previous']
 
-    # Assign 'hash_session_id'
-    df['session_id'] = df['new_session'].astype(int).cumsum()
-    df['hash_session_id'] = df[BATCH_COL] + df['new_session'].astype(str) # BATCH_COL is used as a prefix
+    # Assign 'hash_session_id' with BATCH_COL as a prefix
+    df['session_id'] = df['session_id'].astype(int).cumsum()
+    df['hash_session_id'] = df[BATCH_COL] + df['session_id'].astype(str)
 
     return df
 
@@ -92,32 +129,37 @@ def add_column_duration_hour(df):
 
     return df
 
-def adjust_for_bed_rotation(df_sessions, df):
+def adjust_for_bed_rotation(df_sessions, df_rotation):
+
+    # Adjust only
 
     # Load bed rotations
-    df_rotation = df[df['pacmed_subname'] == 'position_body']
     df_rotation = df_rotation.loc[(df_rotation.effective_value == '30_degrees') |
                                   (df_rotation.effective_value == '45_degrees') |
                                   (df_rotation.effective_value == 'bed_chair'),
                                   ['start_timestamp', 'hash_patient_id']]
 
     # Calculate the adjusted 'end_timestamp'
-    end_timestamp_adjusted = [adjust_end_timestamp(x, y, z, df_rotation)
-                              for x, y, z in zip(df_sessions.loc[:, 'hash_patient_id'],
-                                                 df_sessions.loc[:, 'start_timestamp'],
-                                                 df_sessions.loc[:, 'end_timestamp'])]
+    end_timestamp_adjusted = [adjust_end_timestamp(x, y, z, w, df_rotation)
+                              for x, y, z, w in zip(df_sessions.loc[:, 'hash_patient_id'],
+                                                    df_sessions.loc[:, 'start_timestamp'],
+                                                    df_sessions.loc[:, 'end_timestamp'],
+                                                    df_sessions.loc[:, 'effective_value'])]
 
     # Calculate the difference between the 'end_timestamp' and 'end_timestamp_adjusted'
-    df['end_timestamp_adjusted_hours'] = end_timestamp_adjusted
-    df['end_timestamp_adjusted_hours'] = df['end_timestamp'] - df['end_timestamp_adjusted_hours']
-    df['end_timestamp_adjusted_hours'] = df['end_timestamp_adjusted_hours'].astype('timedelta64[h]').astype('int')
+    df_sessions['end_timestamp_adjusted_hours'] = end_timestamp_adjusted
+    df_sessions['end_timestamp_adjusted_hours'] = df_sessions['end_timestamp'] - df_sessions['end_timestamp_adjusted_hours']
+    df_sessions['end_timestamp_adjusted_hours'] = df_sessions['end_timestamp_adjusted_hours'].astype('timedelta64[h]').astype('int')
 
     #Adjust the 'end_timestamp'
-    df['end_timestamp'] = end_timestamp_adjusted
+    df_sessions['end_timestamp'] = end_timestamp_adjusted
 
-    return df
+    return df_sessions
 
-def adjust_end_timestamp(hash_patient_id, start_timestamp, end_timestamp, df_rotation):
+def adjust_end_timestamp(hash_patient_id, start_timestamp, end_timestamp, effective_value, df_rotation):
+
+    # Adjust only 'prone' sessions.
+    if effective_value == 'supine': return end_timestamp
 
     rotations_within_session = (df_rotation.hash_patient_id == hash_patient_id) &\
                                (start_timestamp < df_rotation.start_timestamp) &\
@@ -131,4 +173,6 @@ def adjust_end_timestamp(hash_patient_id, start_timestamp, end_timestamp, df_rot
 
     return end_timestamp
 
+def subset_data(df, n_of_batches):
+    return df[df[BATCH_COL].isin(df[BATCH_COL].sample(n_of_batches).to_list())]
 
