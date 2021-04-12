@@ -38,7 +38,7 @@ class UseCaseLoader(DataLoader):
         return None
 
     @staticmethod
-    def get_observations(load_path, save_path):
+    def get_unique_sessions(load_path, save_path):
 
         make_proning_sessions(load_path).to_csv(path_or_buf=save_path, index=False)
 
