@@ -1,5 +1,6 @@
 """ This module extracts raw data from the covid data warehouse.
 """
+from typing import Optional, List
 
 from data_warehouse_utils.dataloader import DataLoader
 
@@ -53,6 +54,10 @@ class UseCaseLoader(DataLoader):
         make_proning_sessions(load_path, n_of_batches).to_csv(path_or_buf=save_path, index=False)
 
         return None
+
+    @staticmethod
+    def add_artificial_sessions():
+        pass
 
 
 
