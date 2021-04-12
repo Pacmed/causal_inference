@@ -173,7 +173,7 @@ def sessions_groupby(df):
         Processed data with each row being a single supine/prone session.
     """
 
-    assert ['hash_session_id', 'start_timestamp', 'end_timestamp'] in df.columns
+    assert {'hash_session_id', 'start_timestamp', 'end_timestamp'}.issubset(df.columns)
 
     df['end_timestamp_extracted'] = df['start_timestamp'].shift(-1)
     df.loc[df.index[-1], 'end_timestamp_extracted'] = df.loc[df.index[-1], 'start_timestamp']
