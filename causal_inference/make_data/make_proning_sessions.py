@@ -1,6 +1,6 @@
-"""This loads observations for an experiment.
+"""This module creates observations for the purpose of an experiment.
 
-Each observation in a unique proning or supine session.
+Each observation in a unique prone or supine session.
 
 Observations are created in batches. Data is split into batches using the BATCH_COL.
 
@@ -12,14 +12,18 @@ import pandas as pd
 import numpy as np
 
 from typing import Optional
+
+
 # CONST
-from causal_inference.make_data.make_raw_data import COLUMNS_POSITION # Desired data format
 
 BATCH_COL = 'episode_id' # used to split data into batches and used as a prefix in 'hash_session_id'
 
 DTYPE = {'hash_patient_id': object, 'episode_id': object, 'pacmed_subname': object, 'effective_value': object,
          'numerical_value': np.float64, 'is_correct_unit_yn': bool, 'unit_name': object, 'hospital': object,
          'ehr':object} # Required dtypes
+
+COLUMNS_POSITION = ['hash_patient_id', 'episode_id', 'start_timestamp', 'end_timestamp', 'pacmed_subname',
+                    'effective_value', 'is_correct_unit_yn', 'hospital', 'ehr']
 
 
 def make_proning_sessions(path:str, n_of_batches:Optional[str]=None):
@@ -35,7 +39,7 @@ def make_proning_sessions(path:str, n_of_batches:Optional[str]=None):
     Returns
     -------
     df_session : pd.DataFrame
-        Dataframe with with each row being a unique prone or supine session
+        Dataframe with with each row being a unique prone or supine session.
     """
     
     df = load_raw_position_data(path)
@@ -52,6 +56,22 @@ def make_proning_sessions(path:str, n_of_batches:Optional[str]=None):
     return df_sessions
 
 def load_raw_position_data(path):
+    """Loads data extracted with 'get_position_measurements' method of UseCaseLoader
+        class.
+
+    Parameters
+    ----------
+    path : str
+        A path to the raw position measurement data extracted with 'get_position_measurements' method of UseCaseLoader
+        class.
+
+    Returns
+    -------
+    df : pd.DataFrame
+        Raw data extracted with 'get_position_measurements' method of UseCaseLoader class. Each raw is a single
+         measurement e.g. a 'position_body' measurement like supine or prone; or a 'position_bed' measurement; or other
+         position measurement. Contain columns defined by COLUMNS_POSITION.
+    """
 
     df = pd.read_csv(path, date_parser=['start_timestamp', 'end_timestamp'])
 
@@ -65,12 +85,39 @@ def load_raw_position_data(path):
     return df
 
 def save_processed_sessions_data(df, path):
+    """Save processed data. In the processed data each row is a unique prone or supine session.
+
+    Parameters
+    ----------
+    path : str
+        A path to save the processed data.
+
+    Returns
+    -------
+    z : None
+    """
 
     df.to_csv(path_or_buf=path, index=False)
 
     return None
 
 def make_proning_sessions_batch(df):
+    """Transforms a single batch of the raw position measurement data into a data frame with each row being a
+     unique prone or supine session.
+
+     The column to split the data into batches is specified by BATCH_COL: either 'hash_patient_id' or 'episode_id'.
+
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Raw data loaded with 'load_row_position_data' with a single value for BATCH_COL.
+
+    Returns
+    -------
+    df_session : pd.DataFrame
+        Dataframe with with each row being a unique prone or supine session for a single value of BATCH_COL.
+    """
 
     df_sessions = df[df['pacmed_subname'] == 'position_body']
     if len(df_sessions.index) == 0: return pd.DataFrame([])
@@ -83,6 +130,19 @@ def make_proning_sessions_batch(df):
     return df_sessions
 
 def add_column_hash_session_id(df):
+    """Adds the column 'hash_session_id' which is a result of concatenating the value of BATCH_COL and the session_id.
+        Column session_id is extracted as the number of a unique prone/supine session.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        A batch of raw data that contains only 'position_body' values.
+
+    Returns
+    -------
+    df : pd.DataFrame
+        A batch of raw data with 'hash_session_id' column added.
+    """
 
     # Requires sorting the df
     df = df.sort_values(by=['start_timestamp'], ascending=True).reset_index(drop=True)
@@ -100,6 +160,20 @@ def add_column_hash_session_id(df):
     return df
 
 def sessions_groupby(df):
+    """Groupby sessions by 'hash_session_id' column. Initializes and calculates the values in 'end_timestamp' column.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        A batch of raw data that with 'hash_session_id' column.
+
+    Returns
+    -------
+    df : pd.DataFrame
+        Processed data with each row being a single supine/prone session.
+    """
+
+    assert ['hash_session_id', 'start_timestamp', 'end_timestamp'] in df.columns
 
     df['end_timestamp_extracted'] = df['start_timestamp'].shift(-1)
     df.loc[df.index[-1], 'end_timestamp_extracted'] = df.loc[df.index[-1], 'start_timestamp']
@@ -118,6 +192,19 @@ def sessions_groupby(df):
     return df.reset_index()
 
 def add_column_duration_hour(df):
+    """Adds the column 'duration_hours' which is the difference in hours between the start of the corresponding
+    'position_body' measurement: supine or prone and the start of the consecutive 'position_body' measurement.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        A batch of processed data.
+
+    Returns
+    -------
+    df_session : pd.DataFrame
+        A batch of processed data with 'duration_hours' column added.
+    """
 
     # Assert data consistency.
     assert 'start_timestamp' in df.columns
@@ -130,6 +217,25 @@ def add_column_duration_hour(df):
     return df
 
 def adjust_for_bed_rotation(df_sessions, df_rotation):
+    """Adjusts for bed rotation.
+
+    Some prone sessions may end earlier than indicated by the start of the next supine session. If we measure a
+    corresponding bed rotation measurement, then we adjust the end of a prone session to be equal to the start of
+    the bed rotation session.
+
+    Parameters
+    ----------
+    df_session : pd.DataFrame
+        A batch of processed data.
+
+    df_rotation : pd.DataFrame
+        Raw data that contains only 'position_bed' values.
+
+    Returns
+    -------
+    df : pd.DataFrame
+        A batch of processed data with 'end_timestamp' column adjusted.
+    """
 
     # Adjust only
 
@@ -140,7 +246,7 @@ def adjust_for_bed_rotation(df_sessions, df_rotation):
                                   ['start_timestamp', 'hash_patient_id']]
 
     # Calculate the adjusted 'end_timestamp'
-    end_timestamp_adjusted = [adjust_end_timestamp(x, y, z, w, df_rotation)
+    end_timestamp_adjusted = [__adjust_end_timestamp(x, y, z, w, df_rotation)
                               for x, y, z, w in zip(df_sessions.loc[:, 'hash_patient_id'],
                                                     df_sessions.loc[:, 'start_timestamp'],
                                                     df_sessions.loc[:, 'end_timestamp'],
@@ -156,7 +262,9 @@ def adjust_for_bed_rotation(df_sessions, df_rotation):
 
     return df_sessions
 
-def adjust_end_timestamp(hash_patient_id, start_timestamp, end_timestamp, effective_value, df_rotation):
+def __adjust_end_timestamp(hash_patient_id, start_timestamp, end_timestamp, effective_value, df_rotation):
+    """Private function used to adjust the 'end_timestamp' column by checking for a corresponding bed_rotation
+    measurement. """
 
     # Adjust only 'prone' sessions.
     if effective_value == 'supine': return end_timestamp
@@ -174,5 +282,17 @@ def adjust_end_timestamp(hash_patient_id, start_timestamp, end_timestamp, effect
     return end_timestamp
 
 def subset_data(df, n_of_batches):
+    """Select a batch of data of size 'n_of_batches' based on BATCH_COL. Used only for testing purposes.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Data to select batches from.
+
+    Returns
+    -------
+    z : pd.DataFrame
+        Data with reduced number of batches.
+    """
     return df[df[BATCH_COL].isin(df[BATCH_COL].sample(n_of_batches).to_list())]
 

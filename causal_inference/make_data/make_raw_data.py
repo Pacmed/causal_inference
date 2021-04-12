@@ -7,11 +7,7 @@ import pandas as pd
 from datetime import datetime
 from data_warehouse_utils.dataloader import DataLoader
 
-from causal_inference.make_data.make_proning_sessions import make_proning_sessions
-
-# CONST
-COLUMNS_POSITION = ['hash_patient_id', 'episode_id', 'start_timestamp', 'end_timestamp', 'pacmed_subname',
-                    'effective_value', 'is_correct_unit_yn', 'hospital', 'ehr']
+from causal_inference.make_data.make_proning_sessions import make_proning_sessions, COLUMNS_POSITION
 
 
 class UseCaseLoader(DataLoader):
