@@ -18,11 +18,11 @@ from typing import Optional
 
 BATCH_COL = 'episode_id' # used to split data into batches and used as a prefix in 'hash_session_id'
 
-DTYPE = {'hash_patient_id': object, 'episode_id': object, 'pacmed_subname': object, 'effective_value': object,
-         'numerical_value': np.float64, 'is_correct_unit_yn': bool, 'unit_name': object, 'hospital': object,
-         'ehr':object} # Required dtypes
+DTYPE = {'hash_patient_id': str, 'episode_id': str, 'pacmed_subname': str, 'effective_value': str,
+         'numerical_value': np.float64, 'is_correct_unit_yn': bool, 'unit_name': object, 'hospital': str,
+         'ehr': str}
 
-COLUMNS_POSITION = ['hash_patient_id', 'episode_id', 'start_timestamp', 'end_timestamp', 'pacmed_subname',
+COLUMNS_RAW_DATA = ['hash_patient_id', 'episode_id', 'start_timestamp', 'end_timestamp', 'pacmed_subname',
                     'effective_value', 'is_correct_unit_yn', 'hospital', 'ehr']
 
 
@@ -73,13 +73,15 @@ def load_raw_position_data(path):
          position measurement. Contain columns defined by COLUMNS_POSITION.
     """
 
-    df = pd.read_csv(path, date_parser=['start_timestamp', 'end_timestamp'])
+    df = pd.read_csv(path, date_parser=['start_timestamp', 'end_timestamp'], dtype=DTYPE)
 
-    df.start_timestamp = df.start_timestamp.astype('datetime64[ns]')
-    df.end_timestamp = df.end_timestamp.astype('datetime64[ns]')
+    if 'start_timestamp' in COLUMNS_RAW_DATA:
+        df.start_timestamp = df.start_timestamp.astype('datetime64[ns]')
+    if 'end_timestamp' in COLUMNS_RAW_DATA:
+        df.end_timestamp = df.end_timestamp.astype('datetime64[ns]')
 
     # Ensure column consistency
-    if df.columns.to_list() != COLUMNS_POSITION:
+    if df.columns.to_list() != COLUMNS_RAW_DATA:
         print("The loaded file is not compatible. Use UseCaseLoader to extract raw data!")
 
     return df
@@ -281,14 +283,15 @@ def __adjust_end_timestamp(hash_patient_id, start_timestamp, end_timestamp, effe
 
     return end_timestamp
 
-def subset_data(df, n_of_batches):
+def subset_data(df:pd.DataFrame, n_of_batches:int):
     """Select a batch of data of size 'n_of_batches' based on BATCH_COL. Used only for testing purposes.
 
     Parameters
     ----------
     df : pd.DataFrame
         Data to select batches from.
-
+    n_of_batches : int
+        Number of batches to include.
     Returns
     -------
     z : pd.DataFrame
