@@ -1,11 +1,16 @@
-""" This module extracts raw data from the covid data warehouse.
+""" This module extracts and preprocesses data from the covid data warehouse.
 """
+
+import pandas as pd
+
 from typing import Optional, List
 
 from data_warehouse_utils.dataloader import DataLoader
 
-from causal_inference.make_data.make_proning_sessions import make_proning_sessions, subset_data, COLUMNS_RAW_DATA
+from causal_inference.make_data.make_proning_sessions import make_proning_sessions, COLUMNS_RAW_DATA
 from causal_inference.make_data.make_artificial_sessions import make_artificial_sessions, load_position_data
+from causal_inference.make_data.make_artificial_sessions import INCLUSION_CRITERIA, INCLUSION_PARAMETERS
+from causal_inference.make_data.make_covariates import make_covariates
 
 
 class UseCaseLoader(DataLoader):
@@ -14,12 +19,12 @@ class UseCaseLoader(DataLoader):
     def __init__(self):
         super().__init__()
 
-    def get_position_measurements(self, path:str):
+    def get_position_measurements(self, save_path:str):
         """Saves and extracts raw data of position measurements from the data warehouse.
 
         Parameters
         ----------
-        path : str
+        save_path : str
             Path to save the extracted data.
 
         Returns
@@ -27,7 +32,7 @@ class UseCaseLoader(DataLoader):
         z : None
         """
 
-        self.get_range_measurements(parameters=['position'], columns=COLUMNS_RAW_DATA).to_csv(path, index=False)
+        self.get_range_measurements(parameters=['position'], columns=COLUMNS_RAW_DATA).to_csv(save_path, index=False)
 
         return None
 
@@ -94,3 +99,41 @@ class UseCaseLoader(DataLoader):
         df.to_csv(path_or_buf=save_path, index=False)
 
         return None
+
+    def add_inclusion_criteria(self, load_path:str, save_path:str):
+        """Adds inclusion criteria defined by INCLUSION_CRITERIA.
+
+        Parameters
+        ----------
+        load_path : str
+            A path to the data with unique supine and prone sessions created with the 'make_unique_sessions' method.
+            Data can already contain artificial supine sessions. Measurements of the inclusion criteria are added
+            to the loaded dataset.
+        save_path : str
+            A path to save the transformed data.
+
+        Returns
+        -------
+        z : None
+        """
+
+        df = load_position_data(path=load_path)
+
+        # If INCLUSION_CRITERIA are already initialized in the data, then add only the missing values
+        if set(INCLUSION_CRITERIA) <= set(df.columns):
+            inclusion_criteria = make_covariates(self, df[df.isna().any(axis=1)], covariates=INCLUSION_PARAMETERS)
+
+            # Add each inclusion criteria to the data separately
+            for inclusion_criterion in INCLUSION_CRITERIA:
+                df.loc[df.isna().any(axis=1), inclusion_criterion] = inclusion_criteria.loc[:, inclusion_criterion]
+
+        else:
+            inclusion_criteria = make_covariates(self, df, covariates=INCLUSION_PARAMETERS)
+            df = pd.merge(df, inclusion_criteria, how='left', on='hash_session_id')
+
+        df.to_csv(path_or_buf=save_path, index=False)
+
+        return None
+
+    def add_covariates(self):
+        pass
