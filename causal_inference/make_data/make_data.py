@@ -4,7 +4,8 @@ from typing import Optional, List
 
 from data_warehouse_utils.dataloader import DataLoader
 
-from causal_inference.make_data.make_proning_sessions import make_proning_sessions, COLUMNS_RAW_DATA
+from causal_inference.make_data.make_proning_sessions import make_proning_sessions, subset_data, COLUMNS_RAW_DATA
+from causal_inference.make_data.make_artificial_sessions import make_artificial_sessions, load_position_data
 
 
 class UseCaseLoader(DataLoader):
@@ -55,11 +56,11 @@ class UseCaseLoader(DataLoader):
 
         return None
 
-    @staticmethod
-    def add_artificial_sessions(dl:DataLoader,
+    def add_artificial_sessions(self,
                                 load_path:str,
                                 save_path:str,
-                                min_length_of_artificial_session: Optional[int] = 8):
+                                min_length_of_artificial_session:Optional[int]=8,
+                                n_of_batches:Optional[int]=None):
         """Creates artificial supine sessions from supine sessions longer than 'min_length_of_session'.
 
         For each supine session, all measurements of INCLUSION_PARAMETERS are loaded from the data warehouse. If there is
@@ -77,13 +78,19 @@ class UseCaseLoader(DataLoader):
             A path to the data with unique supine and prone sessions created with the 'make_unique_sessions' method.
         save_path : str
             A path to save the transformed data.
+        min_length_of_artificial_session : Optional[int]
+            The minimum length of artificial supine sessions to be created.
+        n_of_batches : Optional[int]
+            Number of batches to be included. Use only for testing purposes.
 
         Returns
         -------
         z : None
         """
 
-        pass
+        df = load_position_data(path=load_path)
+        if not (n_of_batches is None): df = df.sample(n_of_batches)
+        df = make_artificial_sessions(dl=self, df=df, min_length_of_artificial_session=min_length_of_artificial_session)
+        df.to_csv(path_or_buf=save_path, index=False)
 
-
-
+        return None

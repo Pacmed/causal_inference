@@ -55,7 +55,7 @@ def make_proning_sessions(path:str, n_of_batches:Optional[str]=None):
 
     return df_sessions
 
-def load_raw_position_data(path):
+def load_raw_position_data(path:str):
     """Loads data extracted with 'get_position_measurements' method of UseCaseLoader
         class.
 
@@ -86,11 +86,13 @@ def load_raw_position_data(path):
 
     return df
 
-def save_processed_sessions_data(df, path):
+def save_processed_sessions_data(df:pd.DataFrame, path:str):
     """Save processed data. In the processed data each row is a unique prone or supine session.
 
     Parameters
     ----------
+    df : pd.DataFrame
+        Processed data to be saved.
     path : str
         A path to save the processed data.
 
@@ -103,7 +105,7 @@ def save_processed_sessions_data(df, path):
 
     return None
 
-def make_proning_sessions_batch(df):
+def make_proning_sessions_batch(df:pd.DataFrame):
     """Transforms a single batch of the raw position measurement data into a data frame with each row being a
      unique prone or supine session.
 
@@ -131,7 +133,7 @@ def make_proning_sessions_batch(df):
 
     return df_sessions
 
-def add_column_hash_session_id(df):
+def add_column_hash_session_id(df:pd.DataFrame):
     """Adds the column 'hash_session_id' which is a result of concatenating the value of BATCH_COL and the session_id.
         Column session_id is extracted as the number of a unique prone/supine session.
 
@@ -161,7 +163,7 @@ def add_column_hash_session_id(df):
 
     return df
 
-def sessions_groupby(df):
+def sessions_groupby(df:pd.DataFrame):
     """Groupby sessions by 'hash_session_id' column. Initializes and calculates the values in 'end_timestamp' column.
 
     Parameters
@@ -193,7 +195,7 @@ def sessions_groupby(df):
 
     return df.reset_index()
 
-def add_column_duration_hour(df):
+def add_column_duration_hour(df:pd.DataFrame):
     """Adds the column 'duration_hours' which is the difference in hours between the start of the corresponding
     'position_body' measurement: supine or prone and the start of the consecutive 'position_body' measurement.
 
@@ -218,7 +220,7 @@ def add_column_duration_hour(df):
 
     return df
 
-def adjust_for_bed_rotation(df_sessions, df_rotation):
+def adjust_for_bed_rotation(df_sessions:pd.DataFrame, df_rotation:pd.DataFrame):
     """Adjusts for bed rotation.
 
     Some prone sessions may end earlier than indicated by the start of the next supine session. If we measure a

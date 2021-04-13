@@ -59,7 +59,7 @@ def make_artificial_sessions(dl: DataLoader,
         return pd.DataFrame([])
 
     # For each session, split the supine session.
-    df_new = [_split_supine_session(dl=dl,
+    df_new = [__split_supine_session(dl=dl,
                                     hash_session_id=row.hash_session_id,
                                     hash_patient_id=row.hash_patient_id,
                                     episode_id=row.episode_id,
@@ -83,16 +83,16 @@ def make_artificial_sessions(dl: DataLoader,
 
     if len(df_new) > 0:
         df_new = pd.concat(df_new).reindex(columns=df.columns)
-        df = pd.concat([df, df_new]).reset_index(drop=True) #will this lead to duplicate sessions?
+        df = pd.concat([df, df_new]).reset_index(drop=True) # will this lead to duplicate sessions?
 
     return df
 
 
-def _split_supine_session(dl, hash_session_id, hash_patient_id, episode_id, start_timestamp, end_timestamp,
+def __split_supine_session(dl, hash_session_id, hash_patient_id, episode_id, start_timestamp, end_timestamp,
                           effective_value, is_correct_unit_yn, hospital, ehr, end_timestamp_adjusted_hours,
                           duration_hours, min_length_of_artificial_session):
-    """For each supine session, we load INCLUSION_CRITERIA measurements.
-     """
+    """Private function to create artificial supine sessions in batches.
+    """
 
     ############
     ### LOAD ###
@@ -100,11 +100,11 @@ def _split_supine_session(dl, hash_session_id, hash_patient_id, episode_id, star
 
     # Load inclusion criteria measurements from the warehouse // don't load measurements close to the session end
     end_timestamp_modified = pd.to_datetime(end_timestamp) - timedelta(hours=min_length_of_artificial_session)
-    df_measurements = load_measurements_to_split_supine_sessions(dl,
-                                                                 hash_patient_id=hash_patient_id,
-                                                                 parameters=INCLUSION_PARAMETERS,
-                                                                 start_timestamp=start_timestamp,
-                                                                 end_timestamp=end_timestamp_modified)
+    df_measurements = __load_measurements_to_split_supine_sessions(dl,
+                                                                   hash_patient_id=hash_patient_id,
+                                                                   parameters=INCLUSION_PARAMETERS,
+                                                                   start_timestamp=start_timestamp,
+                                                                   end_timestamp=end_timestamp_modified)
 
     if len(df_measurements) == 0: return pd.DataFrame([])
 
@@ -119,7 +119,7 @@ def _split_supine_session(dl, hash_session_id, hash_patient_id, episode_id, star
                                             values='effective_timestamp',
                                             index=['timestamp_to_split'], # timestamp to group measurements on
                                             columns='pacmed_name',
-                                            aggfunc=aggfunc_last # take the last measurement, as each measurement needs to be taken before the 'start_timestamp'
+                                            aggfunc=__aggfunc_last # take the last measurement, as each measurement needs to be taken before the 'start_timestamp'
                                             ).reset_index()
     if len(df_effective_timestamp) == 0: return pd.DataFrame([])
 
@@ -130,7 +130,7 @@ def _split_supine_session(dl, hash_session_id, hash_patient_id, episode_id, star
                                      values='numerical_value', # stores the value of each measurement
                                      index=['timestamp_to_split'],
                                      columns='pacmed_name',
-                                     aggfunc=aggfunc_last # takes the last value (why not the first?)
+                                     aggfunc=__aggfunc_last # takes the last value (why not the first?)
                                      ).reset_index()
     if len(df_measurements) == 0: return pd.DataFrame([])
 
@@ -165,20 +165,23 @@ def _split_supine_session(dl, hash_session_id, hash_patient_id, episode_id, star
     return df_measurements[COLUMNS_SESSIONS]
 
 
-def aggfunc_last(x):
+def __aggfunc_last(x):
+    """Selects the last element.
+    """
     if len(x) > 1:
         x = x.iloc[-1]
 
     return x
 
-def load_measurements_to_split_supine_sessions(dl:DataLoader,
+def __load_measurements_to_split_supine_sessions(dl:DataLoader,
                                                hash_patient_id:object,
                                                parameters:List[str],
                                                start_timestamp,
                                                end_timestamp):
-        """Loads parameters.
+        """Load parameters to split the supine sessions on.
         """
-        # get measurements to split the sessions on - move timedelta here // don't load measurements close to the session end
+
+        # get measurements to split the sessions on // don't load measurements close to the session end
 
         df = dl.get_single_timestamp(patients=[hash_patient_id],
                                      parameters=parameters,
@@ -198,5 +201,32 @@ def load_measurements_to_split_supine_sessions(dl:DataLoader,
                 df.loc[df.pacmed_name == 'po2_unspecified', 'pacmed_name'] = 'po2'
 
         return df
+
+def load_position_data(path:str):
+    """Loads data extracted with 'make_proning_sessions' method of UseCaseLoader class.
+
+    Parameters
+    ----------
+    path : str
+        A path to the data extracted with 'make_proning_sessions' method of UseCaseLoader class.
+
+    Returns
+    -------
+    df : pd.DataFrame
+        Data extracted with 'make_proning_sessions' method of UseCaseLoader class.
+    """
+
+    df = pd.read_csv(path, date_parser=['start_timestamp', 'end_timestamp'])
+
+    if 'start_timestamp' in COLUMNS_SESSIONS:
+        df.start_timestamp = df.start_timestamp.astype('datetime64[ns]')
+    if 'end_timestamp' in COLUMNS_SESSIONS:
+        df.end_timestamp = df.end_timestamp.astype('datetime64[ns]')
+
+    # Ensure column consistency
+    if not np.all(df.columns.isin(COLUMNS_SESSIONS)):
+        print("The loaded file is not compatible. Use UseCaseLoader to extract raw data!")
+
+    return df
 
 
