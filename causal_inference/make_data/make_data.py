@@ -135,5 +135,67 @@ class UseCaseLoader(DataLoader):
 
         return None
 
-    def add_covariates(self):
-        pass
+    def add_covariates(self,
+                       load_path:str,
+                       save_path:str,
+                       covariates:Optional[List[str]]=None,
+                       interval_start:Optional[int]=8,
+                       interval_end:Optional[int]=0,
+                       shift_forward:Optional[bool]=True):
+        """Adds covariate measurements to the data.
+
+        Parameters
+        ----------
+        load_path : str
+            A path to the data with unique supine and prone sessions created with the 'make_unique_sessions' method.
+            Data can already contain artificial supine sessions. Measurements of the inclusion criteria are added
+            to the loaded dataset.
+        save_path : str
+            A path to save the transformed data.
+        covariates: 'all', Optional[List[str]],
+            List of covariates to add. By default it loads all the covariates.
+            If covariates == all, then all covariates are loaded.
+        interval_start: Optional[int]
+            For each row, covariate measurements are loaded in the interval between 'start_timestamp' - 'interval_start' and
+            'start_timestamp' - 'interval_end'.
+        interval_end: Optional[int]
+            For each row, covariate measurements are loaded in the interval between 'start_timestamp' - 'interval_start' and
+            'start_timestamp' - 'interval_end'.
+        shift_forward: Optional[bool]
+            If 'shift_forward' == True, then 30 minutes are added to the 'interval_end'. In consequence, if there are no
+            measurements loaded for the original interval, then the first measurement in the interval after 'start_timestamp'
+            is loaded.
+
+        Returns
+        -------
+            z : None
+        """
+
+        df = load_position_data(path=load_path)
+
+        if (covariates is None) | (covariates == 'all'):
+            df_covariates = make_covariates(self, df, 'bmi+sofa', 10000, 0)
+            df = pd.merge(df, df_covariates, how='left', on='hash_session_id')
+            print("BMI and SOFA_SCORE loaded!")
+
+            df_covariates = make_covariates(self, df, 'lab_values', 24, 0)
+            df = pd.merge(df, df_covariates, how='left', on='hash_session_id')
+            print("Lab values loaded!")
+
+            df_covariates = make_covariates(self, df, 'covariates_8h', 8, 0)
+            df = pd.merge(df, df_covariates, how='left', on='hash_session_id')
+            print("Rest of the covariates added!")
+
+        else:
+            df_covariates = make_covariates(dl=self,
+                                            df=df,
+                                            covariates=covariates,
+                                            interval_start=interval_start,
+                                            interval_end=interval_end,
+                                            shift_forward=shift_forward)
+            df = pd.merge(df, df_covariates, how='left', on='hash_session_id')
+
+
+        df.to_csv(path_or_buf=save_path, index=False)
+
+        return None

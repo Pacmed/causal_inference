@@ -10,13 +10,15 @@ from typing import Optional, List
 
 from data_warehouse_utils.dataloader import DataLoader
 
+from causal_inference.make_data.parameters import BMI, SOFA, LAB_VALUES, COVARIATES_8h
+
 
 def make_covariates(dl:DataLoader,
                     df:pd.DataFrame,
                     covariates:List[str],
                     interval_start:Optional[int] = 12,
                     interval_end:Optional[int] = 0,
-                    shift_forward:Optional[bool] = False):
+                    shift_forward:Optional[bool] = True):
     """This function loads covariate values for each row of the input data.
 
     Parameters
@@ -44,6 +46,10 @@ def make_covariates(dl:DataLoader,
         Data frame with column 'hash_session_id' and a separate column for each of the loaded covariate.
     """
 
+    if covariates == 'bmi+sofa': covariates = BMI + SOFA
+    if covariates == 'lab_values': covariates = LAB_VALUES
+    if covariates == 'covariates_8h': covariates = COVARIATES_8h
+
     df_measurements = [__get_measurements(dl=dl,
                                           hash_session_id=row.hash_session_id,
                                           hash_patient_id=row.hash_patient_id,
@@ -57,6 +63,8 @@ def make_covariates(dl:DataLoader,
         df_measurements = pd.concat(df_measurements).\
             reset_index(drop=False).\
             rename(columns={"index": "hash_session_id"})
+
+    df_measurements = adjust_columns(df_measurements)
 
     return df_measurements
 
@@ -120,3 +128,25 @@ def __get_measurements(dl,
         df_covariates.loc[hash_session_id, name] = measurement
 
     return df_covariates
+
+def adjust_columns(df):
+    """Rename columns."""
+    if ('cvvh_blood_flow' in df.columns) & ('cvvhd_blood_flow' in df.columns):
+        df['renal_replacement_therapy'] = ~df['cvvh_blood_flow'].isna() | ~df['cvvhd_blood_flow'].isna()
+
+    if ('pco2_arterial' in df.columns) & ('pco2_unspecified' in df.columns):
+        df.loc[df.pco2_arterial.isna(), 'pco2_arterial'] = df.loc[df.pco2_arterial.isna(), 'pco2_unspecified']
+        df = df.rename(columns={'pco2_arterial': 'pco2'})
+
+    if ('lactate_arterial' in df.columns) & ('lactate_blood' in df.columns):
+        df.loc[df.lactate_arterial.isna(), 'lactate_arterial'] = df.loc[df.lactate_arterial.isna(), 'lactate_blood']
+
+    if ('lactate_arterial' in df.columns) & ('lactate_unspecified' in df.columns):
+        df.loc[df.lactate_arterial.isna(), 'lactate_arterial'] = df.loc[df.lactate_arterial.isna(), 'lactate_unspecified']
+
+    if 'lactate_arterial' in df.columns:
+        df = df.rename(columns={'lactate_arterial': 'lactate'})
+
+    if ('ph_arterial' in df.columns) & ('ph_unspecified' in df.columns):
+        df.loc[df.ph_arterial.isna(), 'ph_arterial'] = df.loc[df.ph_arterial.isna(), 'ph_unspecified']
+        df = df.rename(columns={'ph_arterial': 'ph'})
