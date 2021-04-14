@@ -20,11 +20,18 @@ COLUMNS_SESSIONS = ['hash_session_id', 'hash_patient_id', 'episode_id', 'start_t
 def make_artificial_sessions(dl: DataLoader,
                              df: pd.DataFrame,
                              min_length_of_artificial_session: Optional[int] = 8):
-    """Creates artificial supine sessions from supine sessions longer than 'min_length_of_session'.
+    """Creates artificial supine sessions from supine sessions longer than 'min_length_of_artificial_session'.
 
-    For each supine session, all measurements of INCLUSION_PARAMETERS are loaded from the data warehouse. If there is
-    a full hour between the 'start_timestamp' and 'end_timestamp' of the original session in which all
-    INCLUSION_PARAMETERS were measured, then an artificial supine session is created for these measurements.
+    For each supine session:
+        1. Measurements of all INCLUSION_PARAMETERS taken between the
+        'start_timestamp' and 'end_timestamp' - 'min_length_of_artificial_session'
+        are extracted from the data warehouse.
+        2. The 'effective_timestamp' of each measurement is rounded down to a full
+        hour. 
+        3. For each hour in which all the INCLUSION_CRITERIA were measured an
+        artificial supine session is created.
+        4. The 'start_timestamp' of the new session is equal to the latest
+        'effective_timestamp' of INCLUSION_PARAMETERS measurements.
     The 'start_timestamp' of the new measurements is the latest 'effective_timestamp' of the INCLUSION_CRTERIA
     measurement and the 'end_timestamp' is the 'end_timestamp' of the original session.
 
@@ -83,7 +90,7 @@ def make_artificial_sessions(dl: DataLoader,
 
     if len(df_new) > 0:
         df_new = pd.concat(df_new).reindex(columns=df.columns)
-        df = pd.concat([df, df_new]).reset_index(drop=True) # will this lead to duplicate sessions?
+        df = pd.concat([df, df_new]).reset_index(drop=True) # This can lead to duplicate sessions
 
     return df
 
@@ -92,6 +99,17 @@ def __split_supine_session(dl, hash_session_id, hash_patient_id, episode_id, sta
                           effective_value, is_correct_unit_yn, hospital, ehr, end_timestamp_adjusted_hours,
                           duration_hours, min_length_of_artificial_session):
     """Private function to create artificial supine sessions in batches.
+    
+    For each supine session:
+        1. Measurements of all INCLUSION_PARAMETERS taken between the
+        'start_timestamp' and 'end_timestamp' - 'min_length_of_artificial_session'
+        are extracted from the data warehouse.
+        2. The 'effective_timestamp' of each measurement is rounded down to a full
+        hour. 
+        3. For each hour in which all the INCLUSION_CRITERIA were measured an
+        artificial supine session is created.
+        4. The 'start_timestamp' of the new session is equal to the latest
+        'effective_timestamp' of INCLUSION_PARAMETERS measurements.
     """
 
     ############
@@ -125,12 +143,12 @@ def __split_supine_session(dl, hash_session_id, hash_patient_id, episode_id, sta
 
     df_effective_timestamp['start_timestamp'] = df_effective_timestamp.max(axis=1)
 
-    # Get measurements of INCLUSION CRITERIA
+    # Loads measurements of INCLUSION_CRITERIA from the data warehouse. The 'numerical_value' of the loaded measurements is the value of the INCLUSION_CRITERIA. 
     df_measurements = pd.pivot_table(df_measurements,
                                      values='numerical_value', # stores the value of each measurement
                                      index=['timestamp_to_split'],
                                      columns='pacmed_name',
-                                     aggfunc=__aggfunc_last # takes the last value (why not the first?)
+                                     aggfunc=__aggfunc_last # arbitrarily takes the last value
                                      ).reset_index()
     if len(df_measurements) == 0: return pd.DataFrame([])
 
@@ -165,8 +183,19 @@ def __split_supine_session(dl, hash_session_id, hash_patient_id, episode_id, sta
     return df_measurements[COLUMNS_SESSIONS]
 
 
-def __aggfunc_last(x):
-    """Selects the last element.
+def __aggfunc_last(x:np.ndarray):
+    """A method used in 'pd.pivot_table' method that selects the last element of a
+    np.ndarray.
+    
+    Parameters
+    ----------------
+    x : np.ndarray
+        An array to select the last element from.
+       
+    Returns
+    -----------
+    z : object
+        The last element of x.
     """
     if len(x) > 1:
         x = x.iloc[-1]
@@ -176,9 +205,27 @@ def __aggfunc_last(x):
 def __load_measurements_to_split_supine_sessions(dl:DataLoader,
                                                hash_patient_id:object,
                                                parameters:List[str],
-                                               start_timestamp,
-                                               end_timestamp):
+                                               start_timestamp : np.datetime64[ns],
+                                               end_timestamp : np.datetime64[ns]):
         """Load parameters to split the supine sessions on.
+        
+        Parameters
+        ---------------
+        dl : DataLoader
+            A DataLoader to load the data from the warehouse.
+        hash_patient_id : object, str
+            The id of a session for which the data will be extracted.
+        parameters : List[str]
+            List of parameters for which to extract measurements.
+        start_timestamp : np.datetime64[ns]
+            Timestamp from which to extract measurements.   
+        end_timestamp : np.datetime64[ns]
+            Timestamp until which to extract measurements.
+         
+        Returns
+        ----------
+        df : pd.DataFrame
+            Extracted measurements.
         """
 
         # get measurements to split the sessions on // don't load measurements close to the session end
@@ -228,5 +275,4 @@ def load_position_data(path:str):
         print("The loaded file is not compatible. Use UseCaseLoader to extract raw data!")
 
     return df
-
 
