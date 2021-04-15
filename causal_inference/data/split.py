@@ -1,4 +1,4 @@
-""" This module performs a train/test split of the relevant np.ndarrays.
+""" This module performs a train/test split of the data.
 """
 
 import numpy as np

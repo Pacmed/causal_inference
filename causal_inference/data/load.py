@@ -1,5 +1,7 @@
-"""This module transforms raw data with all outcomes and covariates extracted from the data present into data
- ready to be used in the experiment.
+"""This module transforms raw data into data that is ready to be used for modelling purposes.
+
+The raw data can contain all outcomes and covariates extracted from the data warehouse. The outcome data can be
+converted to arrays, split and bootstrapped.
 """
 
 import pandas as pd
@@ -10,10 +12,10 @@ from typing import Optional
 
 def prepare_csv_data(df:pd.DataFrame,
                      outcome_name:str,
-                     threshold:float=1):
+                     threshold:Optional[float]=1):
     """Transforms raw data into data ready to be converted into np.ndarrays.
 
-    transforms the data by removing redundant outcomes, and dtypes conversion.
+    Transforms the data by removing redundant outcomes, and by dtypes conversion.
 
     Parameters
     ----------
@@ -22,8 +24,8 @@ def prepare_csv_data(df:pd.DataFrame,
     outcome_name : str
         Outcome name.
     threshold : float
-        Columns with a fraction of missing values exceeding the 'threshold' are deleted. By default, columns containing
-        only missing values are deleted.
+        Columns with a fraction of missing values exceeding the 'threshold' are deleted. Lower threshold will result
+        in deleting more columns. By default, columns containing only missing values are deleted.
 
     Returns
     -------
@@ -32,16 +34,20 @@ def prepare_csv_data(df:pd.DataFrame,
     """
 
     # Delete additional pre-existing outcomes
-    outcomes_to_delete = df.filter(regex='outcome').columns.to_list()
-    outcomes_to_delete.remove(outcome_name)
-    df.drop(columns=outcomes_to_delete, inplace=True)
+    columns_to_drop = df.filter(regex='outcome').columns.to_list()
+    columns_to_drop.remove(outcome_name)
+    df.drop(columns=columns_to_drop, inplace=True)
+    print(f'Additional outcomes {columns_to_drop} deleted.')
 
     # Delete rows with missing outcome values
     df.dropna(subset=[outcome_name], inplace=True)
 
     # Drop columns with a fraction of missing values exceeding the threshold
     thresh = round(threshold * len(df.index))
+    columns_to_drop = df.columns.to_list()
     df = df.dropna(thresh=thresh, axis=1)
+    columns_to_drop = list(set(columns_to_drop) - set(df.columns.to_list()))
+    print(f'Columns exceeding the threshold of missing values: {columns_to_drop} deleted.')
 
     # Convert categorical variable into dummy/indicator variables.
     columns_not_to_drop = df.filter(regex='False').columns.to_list()
@@ -60,8 +66,8 @@ def prepare_csv_data(df:pd.DataFrame,
 def csv_data_to_np(df:pd.DataFrame,
                    outcome_name:str,
                    treatment_name:str,
-                   covariates_name:str=None):
-    """ Converts observational data into covariates, treatment indicator and outcome arrays.
+                   covariates_name:Optional[str]=None):
+    """ Converts data into np.ndarrays corresponding to covariates, the treatment indicator and outcome.
 
      Parameters
      ----------
