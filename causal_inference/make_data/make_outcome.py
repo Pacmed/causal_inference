@@ -1,4 +1,5 @@
-"""This module extracts outcomes for the causal inference experiment."""
+"""This module adds outcome measurements to data.
+"""
 
 import pandas as pd
 import numpy as np
@@ -10,9 +11,9 @@ from data_warehouse_utils.dataloader import DataLoader
 
 
 def add_outcomes(dl: DataLoader, df: pd.DataFrame, df_measurements: Optional[pd.DataFrame] = None):
-    """ This function loads outcomes for the purpose of the causal inference project.
+    """This function loads covariate values for each row of the input data.
 
-    Two distinct outcomes are loaded for each of the two intervals.
+    Two distinct outcomes are loaded.
 
     Parameters
     ----------

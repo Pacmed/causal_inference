@@ -14,7 +14,7 @@ from data_warehouse_utils.dataloader import DataLoader
 from causal_inference.make_data.create_observations import create_observations
 from causal_inference.make_data.create_covariates import add_covariates
 from causal_inference.make_data.create_control import create_control_observations
-from causal_inference.make_data.create_outcome import add_outcomes
+from causal_inference.make_data.make_outcome import add_outcomes
 from causal_inference.make_data.create_medications import get_medications
 from causal_inference.make_data.utils import optimize_dtypes
 from causal_inference.make_data.create_outcome_old import get_pf_ratio_as_outcome
