@@ -90,8 +90,8 @@ def get_medication_per_session(df_medications,
     """
 
     ### Filter medication data ###
-    start = start_timestamp - timedelta(hours=4)
-    end = start_timestamp + timedelta(hours=2)
+    start = start_timestamp - timedelta(hours=interval_start)
+    end = start_timestamp + timedelta(hours=interval_end)
 
     timestamp_matches = (start <= df_medications['start_timestamp']) & (df_medications['start_timestamp'] <= end)
     id_matches = df_medications['hash_patient_id'] == hash_patient_id
