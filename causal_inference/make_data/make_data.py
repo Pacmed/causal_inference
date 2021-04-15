@@ -10,7 +10,7 @@ from data_warehouse_utils.dataloader import DataLoader
 from causal_inference.make_data.make_proning_sessions import make_proning_sessions, COLUMNS_RAW_DATA
 from causal_inference.make_data.make_artificial_sessions import make_artificial_sessions, load_position_data
 from causal_inference.make_data.make_artificial_sessions import INCLUSION_CRITERIA, INCLUSION_PARAMETERS
-from causal_inference.make_data.make_covariates import make_covariates
+from causal_inference.make_data.make_covariates import make_covariates, construct_pf_ratio
 
 
 class UseCaseLoader(DataLoader):
@@ -131,6 +131,7 @@ class UseCaseLoader(DataLoader):
             inclusion_criteria = make_covariates(self, df, covariates=INCLUSION_PARAMETERS)
             df = pd.merge(df, inclusion_criteria, how='left', on='hash_session_id')
 
+        df = construct_pf_ratio(df)
         df.to_csv(path_or_buf=save_path, index=False)
 
         return None

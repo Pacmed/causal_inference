@@ -205,8 +205,8 @@ def __aggfunc_last(x:np.ndarray):
 def __load_measurements_to_split_supine_sessions(dl:DataLoader,
                                                hash_patient_id:object,
                                                parameters:List[str],
-                                               start_timestamp : np.datetime64[ns],
-                                               end_timestamp : np.datetime64[ns]):
+                                               start_timestamp : np.datetime64,
+                                               end_timestamp : np.datetime64):
         """Load parameters to split the supine sessions on.
         
         Parameters
@@ -217,9 +217,9 @@ def __load_measurements_to_split_supine_sessions(dl:DataLoader,
             The id of a session for which the data will be extracted.
         parameters : List[str]
             List of parameters for which to extract measurements.
-        start_timestamp : np.datetime64[ns]
+        start_timestamp : np.datetime64
             Timestamp from which to extract measurements.   
-        end_timestamp : np.datetime64[ns]
+        end_timestamp : np.datetime64
             Timestamp until which to extract measurements.
          
         Returns
