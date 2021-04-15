@@ -77,7 +77,6 @@ def make_artificial_sessions(dl: DataLoader,
                                     hospital=row.hospital,
                                     ehr=row.ehr,
                                     end_timestamp_adjusted_hours=row.end_timestamp_adjusted_hours,
-                                    duration_hours=row.duration_hours,
                                     min_length_of_artificial_session=min_length_of_artificial_session)
               for row in df.itertuples(index=False)]
 
@@ -95,21 +94,54 @@ def make_artificial_sessions(dl: DataLoader,
     return df
 
 
-def __split_supine_session(dl, hash_session_id, hash_patient_id, episode_id, start_timestamp, end_timestamp,
-                          effective_value, is_correct_unit_yn, hospital, ehr, end_timestamp_adjusted_hours,
-                          duration_hours, min_length_of_artificial_session):
+def __split_supine_session(dl:DataLoader, hash_session_id:str, hash_patient_id:str, episode_id:str,
+                           start_timestamp:np.datetime64, end_timestamp:np.datetime64,
+                           effective_value:str, is_correct_unit_yn:bool, hospital:str, ehr:str,
+                           end_timestamp_adjusted_hours:int, min_length_of_artificial_session:min):
     """Private function to create artificial supine sessions in batches.
-    
+
     For each supine session:
         1. Measurements of all INCLUSION_PARAMETERS taken between the
         'start_timestamp' and 'end_timestamp' - 'min_length_of_artificial_session'
         are extracted from the data warehouse.
         2. The 'effective_timestamp' of each measurement is rounded down to a full
-        hour. 
+        hour.
         3. For each hour in which all the INCLUSION_CRITERIA were measured an
         artificial supine session is created.
         4. The 'start_timestamp' of the new session is equal to the latest
         'effective_timestamp' of INCLUSION_PARAMETERS measurements.
+
+    Parameters
+    ----------
+    dl : DataLoader
+        A DataLoader to load data from the warehouse.
+    hash_session_id : str
+        Session id of a patient.
+    hash_patient_id : str
+        Patient id.
+    episode_id : str
+        Episode id.
+    start_timestamp : np.datetime64
+        Start of the session.
+    end_timestamp : np.datetime64
+        End of the session.
+    effective_value : str
+        Effective value of a session: 'supine' or 'prone'.
+    is_correct_unit_yn : bool
+        Indicator whether is a correct unit.
+    hospital : str
+        Name of the hospital.
+    ehr : str
+        Name of the ehr system.
+    end_timestamp_adjusted_hours : int
+        Hours by which a prone session was adjusted.
+    min_length_of_artificial_session : int
+        Minimum length of an artificial supine session.
+
+    Returns
+    -------
+    df_measurements : pd.Dataframe
+        Artificial supine sessions created from a single supine session.
     """
 
     ############
@@ -205,8 +237,8 @@ def __aggfunc_last(x:np.ndarray):
 def __load_measurements_to_split_supine_sessions(dl:DataLoader,
                                                hash_patient_id:object,
                                                parameters:List[str],
-                                               start_timestamp : np.datetime64[ns],
-                                               end_timestamp : np.datetime64[ns]):
+                                               start_timestamp : np.datetime64,
+                                               end_timestamp : np.datetime64):
         """Load parameters to split the supine sessions on.
         
         Parameters
@@ -275,4 +307,3 @@ def load_position_data(path:str):
         print("The loaded file is not compatible. Use UseCaseLoader to extract raw data!")
 
     return df
-

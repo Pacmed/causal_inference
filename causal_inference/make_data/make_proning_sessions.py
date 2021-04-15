@@ -266,9 +266,27 @@ def adjust_for_bed_rotation(df_sessions:pd.DataFrame, df_rotation:pd.DataFrame):
 
     return df_sessions
 
-def __adjust_end_timestamp(hash_patient_id, start_timestamp, end_timestamp, effective_value, df_rotation):
+def __adjust_end_timestamp(hash_patient_id:str,
+                           start_timestamp:np.datetime64,
+                           end_timestamp:np.datetime64,
+                           effective_value:str,
+                           df_rotation:pd.DataFrame):
     """Private function used to adjust the 'end_timestamp' column by checking for a corresponding bed_rotation
-    measurement. """
+    measurement.
+
+    Parameters
+    ----------
+    hash_patient_id : str
+        Patient id.
+    start_timestamp : np.datetime64
+        Start of the session.
+    end_timestamp : np.datetime64
+        End of the session.
+    effective_value : str
+        Effective value of the session: supine or prone.
+    df_rotation : pd.DataFrame
+        Data with bed rotation.
+     """
 
     # Adjust only 'prone' sessions.
     if effective_value == 'supine': return end_timestamp
@@ -294,10 +312,10 @@ def subset_data(df:pd.DataFrame, n_of_batches:int):
         Data to select batches from.
     n_of_batches : int
         Number of batches to include.
+
     Returns
     -------
     z : pd.DataFrame
         Data with reduced number of batches.
     """
     return df[df[BATCH_COL].isin(df[BATCH_COL].sample(n_of_batches).to_list())]
-

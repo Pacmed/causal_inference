@@ -62,15 +62,42 @@ def make_covariates(dl:DataLoader,
 
 
 def __get_measurements(dl,
-                      hash_session_id,
-                      hash_patient_id,
-                      start_timestamp,
-                      covariates,
-                      interval_start,
-                      interval_end,
-                      shift_forward
-                      ):
-    """A private function to load covariates per row / in batches."""
+                       hash_session_id,
+                       hash_patient_id,
+                       start_timestamp,
+                       covariates,
+                       interval_start,
+                       interval_end,
+                       shift_forward
+                       ):
+    """A private function to load covariates per row / in batches.
+
+    Parameters
+    ----------
+    dl : DataLoader
+        A DataLoader to load data from the warehouse.
+    hash_session_id : str
+        Id of the session.
+    hash_patient_id : str
+        Id of the patient.
+    start_timestamp : np.datetime64
+        Start timestamp of the session.
+    covariates : List[str]
+        List of covariates to be loaded from the warehouse.
+    interval_start : int
+        Hours before the 'start_timestamp' from which measurements should be loaded.
+    interval_end : int
+        Hours before 'start_timestamp' until which the measurements should be loaded.
+    shift_forward : bool
+        If 'shift_forward' == True, then 30 minutes are added to the 'interval_end'. In consequence, if there are no
+        measurements loaded for the original interval, then the first measurement in the interval after 'start_timestamp'
+        is loaded.
+
+    Returns
+    -------
+    df_covariates : pd.DataFrame
+        Data with covariates.
+    """
 
     ### Define the interval in which measurements should be loaded. ###
     interval_start = start_timestamp - timedelta(hours=interval_start)
