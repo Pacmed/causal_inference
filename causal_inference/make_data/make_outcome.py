@@ -9,11 +9,15 @@ from datetime import timedelta
 from typing import Optional
 from data_warehouse_utils.dataloader import DataLoader
 
+EARLY_PRONING_EFFECT = [2, 8]
+LATE_PRONING_EFFECT = [12, 24]
+
 
 def add_outcomes(dl: DataLoader, df: pd.DataFrame, df_measurements: Optional[pd.DataFrame] = None):
-    """This function loads covariate values for each row of the input data.
+    """This function loads outcome values for each row of the input data.
 
-    Two distinct outcomes are loaded.
+    Two distinct outcomes are loaded. The first outcome corresponds to the interval [2, 8].
+    The second outcome corresponds to the interval [12, 24].
 
     Parameters
     ----------
@@ -22,7 +26,7 @@ def add_outcomes(dl: DataLoader, df: pd.DataFrame, df_measurements: Optional[pd.
     df : pd.DataFrame
         Data skeleton with observations and treatment.
     df_measurements : pd.DataFrame
-        Data containing single timestamp observations.
+        Data containing single timestamp observations of parameters used to construct the outcomes.
 
     Returns
     -------
@@ -30,6 +34,7 @@ def add_outcomes(dl: DataLoader, df: pd.DataFrame, df_measurements: Optional[pd.
         Data frame with added columns for each type of outcome.
     """
 
+    # Load measurement data
     if not isinstance(df_measurements, pd.DataFrame):
         print("Loading measurement data.")
         parameters = ['po2_arterial', 'po2_unspecified', 'fio2', 'pao2_over_fio2', 'pao2_unspecified_over_fio2']
@@ -71,30 +76,73 @@ def add_outcomes(dl: DataLoader, df: pd.DataFrame, df_measurements: Optional[pd.
 
     return df
 
-def __get_pf_ratio_as_outcome(patient_id, start, end, df_measurements):
+def __get_pf_ratio_as_outcome(hash_patient_id, start_timestamp, end_timestamp, df_measurements):
+    """This function loads outcome values for a row of the input data.
 
-    interval_first = [2,8]
-    interval_last = [12, 24]
+    Two distinct outcomes are loaded. The first outcome corresponds to the interval [2, 8].
+    The second outcome corresponds to the interval [12, 24].
 
-    start_first = start + timedelta(hours=interval_first[0])
-    end_first = min(end, start + timedelta(hours=interval_first[1]))
+    Parameters
+    ----------
+    hash_patient_id : str
+        Id of the patient.
+    start_timestamp : np.datetime64
+        Start of the session.
+    end_timestamp : np.datetime64
+        End of the session.
+    df_measurements : pd.DataFrame
+        Data containing single timestamp observations of parameters used to construct the outcomes.
 
-    start_last = start + timedelta(hours=interval_last[0])
-    end_last = min(end, start + timedelta(hours=interval_last[1]))
+    Returns
+    -------
+    pf_ratio_first : np.float
+        The first outcome constructed from the measurements of the 'pao2_over_fio2' parameter
+    pf_ratio_first_manual : np.float
+        The first outcome manually constructed from the measurements of the 'po2' and 'fio2' parameters
+    pf_ratio_second : np.float
+        The second outcome constructed from the measurements of the 'pao2_over_fio2' parameter
+    pf_ratio_second_manual : np.float
+        The second outcome manually constructed from the measurements of the 'po2' and 'fio2' parameters
+    """
 
+    interval_first = EARLY_PRONING_EFFECT
+    interval_last = LATE_PRONING_EFFECT
+
+    # Create start and end timestamps for the first outcome
+    start_first = start_timestamp + timedelta(hours=interval_first[0])
+    end_first = min(end_timestamp, start_timestamp + timedelta(hours=interval_first[1]))
+
+    # Create start and end timestamps for the second outcome
+    start_last = start_timestamp + timedelta(hours=interval_last[0])
+    end_last = min(end_timestamp, start_timestamp + timedelta(hours=interval_last[1]))
+
+    # Load corresponding single timestamp measurements used to construct the outcomes
     expr = 'hash_patient_id == @patient_id and @start_first <= effective_timestamp <= @end_first'
     results_first = df_measurements.query(expr=expr).sort_values(by='effective_timestamp', ascending=True)
     expr = 'hash_patient_id == @patient_id and @start_last <= effective_timestamp <= @end_last'
     results_last = df_measurements.query(expr=expr).sort_values(by='effective_timestamp', ascending=True)
 
-    pf_ratio_1 = __get_pao2_over_fio2(results_first)
-    pf_ratio_2 = __calculate_pf_ratio_manually(results_first)
-    pf_ratio_3 = __get_pao2_over_fio2(results_last)
-    pf_ratio_4 = __calculate_pf_ratio_manually(results_last)
+    pf_ratio_first = __get_pao2_over_fio2(results_first)
+    pf_ratio_first_manual = __calculate_pf_ratio_manually(results_first)
+    pf_ratio_second = __get_pao2_over_fio2(results_last)
+    pf_ratio_second_manual = __calculate_pf_ratio_manually(results_last)
 
-    return pf_ratio_1, pf_ratio_2, pf_ratio_3, pf_ratio_4
+    return pf_ratio_first, pf_ratio_first_manual, pf_ratio_second, pf_ratio_second_manual
 
-def __get_pao2_over_fio2(df_measurements):
+def __get_pao2_over_fio2(df_measurements:pd.DataFrame):
+    """Construct the outcome from the measurements of the 'pao2_over_fio2' parameter.
+
+    Parameters
+    ----------
+    df_measurements : pd.Dataframe
+        Data containing single timestamp measurements used to construct the outcomes.
+
+    Returns
+    -------
+    pf_ratio : float
+        Outcome from the measurements of the 'pao2_over_fio2' parameter.
+    """
+
     pf_ratio = df_measurements[df_measurements.pacmed_name == 'pao2_over_fio2']
 
     if not len(pf_ratio.index) > 0:
@@ -108,6 +156,18 @@ def __get_pao2_over_fio2(df_measurements):
     return pf_ratio
 
 def __calculate_pf_ratio_manually(df_measurements):
+    """Construct the outcome from the measurements of the 'po2' and 'fio2' parameters.
+
+    Parameters
+    ----------
+    df_measurements : pd.Dataframe
+        Data containing single timestamp measurements used to construct the outcomes.
+
+    Returns
+    -------
+    pf_ratio : float
+        Outcome from the measurements of 'po2' and 'fio2' parameters.
+    """
 
     po2 = df_measurements[(df_measurements.pacmed_name == 'po2_arterial') |
                           (df_measurements.pacmed_name == 'po2_unspecified')]
