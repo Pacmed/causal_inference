@@ -186,7 +186,12 @@ class Experiment:
         os.chdir(path)
         print("Directory changed to:", os.getcwd())
 
-        model_name = f'{self.causal_model}'
+        try:
+            model_name = f'{self.causal_model.model}'
+        except AttributeError:
+            model_name = f'{self.causal_model}'
+
+        # Adjust model_name
         model_name = model_name[0: model_name.index("(")]
 
         np.savetxt(f'pred_{model_name}.csv', self.pred_, delimiter=",", fmt='%1.2f')
