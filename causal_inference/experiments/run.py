@@ -191,7 +191,7 @@ class Experiment:
 
         np.savetxt(f'pred_{model_name}.csv', self.pred_, delimiter=",", fmt='%1.2f')
         np.savetxt(f'results_{model_name}.csv', self.results_, delimiter=",", fmt='%1.2f')
-        np.savetxt(f'summary_{model_name}.csv', self.summary__, delimiter=",", fmt='%1.2f')
+        np.savetxt(f'summary_{model_name}.csv', self.summary_, delimiter=",", fmt='%1.2f')
 
         # TO DO: save model's hyperparameters
 
