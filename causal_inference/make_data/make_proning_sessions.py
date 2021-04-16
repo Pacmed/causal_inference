@@ -2,10 +2,11 @@
 
 Each observation in a unique prone or supine session.
 
-Observations are created in batches. Data is split into batches using the BATCH_COL.
+Observations are created in batches. Data is split into batches using the BATCH_COL. The number of batches to be
+processed can be limited with 'n_of_batches'.
 
 The raw position measurements data is first loaded and then converted into a dataframe with each row being an
- observation.
+observation.
 """
 
 import pandas as pd
@@ -43,7 +44,7 @@ def make_proning_sessions(path:str, n_of_batches:Optional[str]=None):
     """
     
     df = load_raw_position_data(path)
-    if not (n_of_batches is None): df = subset_data(df, n_of_batches)
+    if not (n_of_batches is None): df = limit_n_of_batches(df, n_of_batches)
     
     # Use BATCH_COL to split the data into batches
     batch_list = df[BATCH_COL].to_list()
@@ -303,7 +304,7 @@ def __adjust_end_timestamp(hash_patient_id:str,
 
     return end_timestamp
 
-def subset_data(df:pd.DataFrame, n_of_batches:int):
+def limit_n_of_batches(df:pd.DataFrame, n_of_batches:int):
     """Select a batch of data of size 'n_of_batches' based on BATCH_COL. Used only for testing purposes.
 
     Parameters
