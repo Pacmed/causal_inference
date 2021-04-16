@@ -9,6 +9,7 @@ from causal_inference.make_data.create_outcome import add_outcomes
 from causal_inference.make_data.create_medications import get_medications
 
 
+
 class UseCaseLoader(DataLoader):
     """
     A class used to create the observational data set.
