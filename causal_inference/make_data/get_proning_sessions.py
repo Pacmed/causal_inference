@@ -5,7 +5,9 @@ from data_warehouse_utils.dataloader import DataLoader
 
 from causal_inference.old.create_observations import create_observations
 from causal_inference.make_data.create_covariates import add_covariates
-from causal_inference.make_data.create_outcome import add_outcomes
+from causal_inference.make_data.create_control import create_control_observations
+from causal_inference.make_data.make_outcome import add_outcomes
+
 from causal_inference.make_data.create_medications import get_medications
 
 
