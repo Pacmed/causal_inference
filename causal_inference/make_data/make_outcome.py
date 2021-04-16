@@ -16,8 +16,8 @@ LATE_PRONING_EFFECT = [12, 24]
 def add_outcomes(dl: DataLoader, df: pd.DataFrame, df_measurements: Optional[pd.DataFrame] = None):
     """This function loads outcome values for each row of the input data.
 
-    Two distinct outcomes are loaded. The first outcome corresponds to the interval [2, 8].
-    The second outcome corresponds to the interval [12, 24].
+    Two distinct outcomes are loaded. The first outcome corresponds to the interval EARLY_PRONING_EFFECT.
+    The second outcome corresponds to the interval LATE_PRONING_EFFECT.
 
     Parameters
     ----------
@@ -79,8 +79,11 @@ def add_outcomes(dl: DataLoader, df: pd.DataFrame, df_measurements: Optional[pd.
 def __get_pf_ratio_as_outcome(hash_patient_id, start_timestamp, end_timestamp, df_measurements):
     """This function loads outcome values for a row of the input data.
 
-    Two distinct outcomes are loaded. The first outcome corresponds to the interval [2, 8].
-    The second outcome corresponds to the interval [12, 24].
+    Two distinct outcomes are loaded. The first outcome corresponds to the interval EARLY_PRONING_EFFECT.
+    The second outcome corresponds to the interval LATE_PRONING_EFFECT.
+
+    We refer to manually constructed outcomes as to outcomes constructed by dividing the latest 'po2' by the latest
+    'fio2' measurements.
 
     Parameters
     ----------
