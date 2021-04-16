@@ -10,7 +10,7 @@ def bootstrap(y: np.ndarray,
               t: np.ndarray,
               X: np.ndarray,
               n_of_samples: Optional[int]=100,
-              sample_size: Optional[float]=0.95,
+              bootstrap_size: Optional[float]=0.95,
               method: Optional[str]='train'):
     """ Creates bootstrap samples of the outcome, treatment indicator and covariates matrices.
 
@@ -28,7 +28,7 @@ def bootstrap(y: np.ndarray,
         Covariates array.
     n_of_samples: Optional[int]
         Number of bootstrapped samples to create.
-    sample_size: Optional[float]
+    bootstrap_size: Optional[float]
         The fraction of observations in the data to be included in each sample.
     method: 'train' or 'test'
         It method == 'train', then bootsrapping is performed. If method == 'test' only the shape is being change.
@@ -52,8 +52,8 @@ def bootstrap(y: np.ndarray,
     X_treated_bootstrapped, y_treated_bootstrapped, X_control_bootstrapped, y_control_bootstrapped  = [], [], [], []
 
     # Calculate the number of treated and control observations in each sample
-    sample_size_treated = np.floor(sample_size * X_treated.shape[0]).astype(int)
-    sample_size_control = np.floor(sample_size * X_control.shape[0]).astype(int)
+    sample_size_treated = np.floor(bootstrap_size * X_treated.shape[0]).astype(int)
+    sample_size_control = np.floor(bootstrap_size * X_control.shape[0]).astype(int)
 
     for i in range(n_of_samples):
 
