@@ -1,5 +1,7 @@
 BMI = ['body_mass_index']
 
+SOFA = ['sofa_score']
+
 LAB_VALUES = ['c_reactive_protein',
               'leukocytes',
               'procalcitonin',
@@ -59,6 +61,8 @@ VENTILATOR_VALUES = ['peep',
                      'fio2',
                      'pressure_above_peep',
                      'tidal_volume',
+                     'tidal_volume_per_kg',
+                     'tidal_volume_per_kg_set',
                      'inspiratory_expiratory_ratio',
                      'respiratory_rate_measured',
                      'respiratory_rate_set',
@@ -68,3 +72,7 @@ VENTILATOR_VALUES = ['peep',
                      'driving_pressure',
                      'plateau_pressure',
                      'peak_pressure']
+
+CVVH = ['cvvh_blood_flow', 'cvvhd_blood_flow', 'aki']
+
+COVARIATES_8h = BLOOD_GAS + CENTRAL_LINE + SATURATION + VITAL_SIGNS + VENTILATOR_VALUES + CVVH

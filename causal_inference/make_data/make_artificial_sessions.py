@@ -249,9 +249,9 @@ def __load_measurements_to_split_supine_sessions(dl:DataLoader,
             The id of a session for which the data will be extracted.
         parameters : List[str]
             List of parameters for which to extract measurements.
-        start_timestamp : np.datetime64[ns]
+        start_timestamp : np.datetime64
             Timestamp from which to extract measurements.   
-        end_timestamp : np.datetime64[ns]
+        end_timestamp : np.datetime64
             Timestamp until which to extract measurements.
          
         Returns
