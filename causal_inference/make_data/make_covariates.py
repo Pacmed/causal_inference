@@ -28,10 +28,14 @@ def make_covariates(dl:DataLoader,
     covariates: List[str]
         List of covariates to add. By default it loads all the covariates.
     interval_start: Optional[int]
-        For each row, covariate measurements are loaded in the interval between 'start_timestamp' - 'interval_start' and
+        The integer 'interval_start' represents the amount of hours subtracted from the beginning of the session
+        to determine the start of the interval in which we load covariate measurements. For each row, covariate
+        measurements are loaded in the interval between 'start_timestamp' - 'interval_start' and
         'start_timestamp' - 'interval_end'.
     interval_end: Optional[int]
-        For each row, covariate measurements are loaded in the interval between 'start_timestamp' - 'interval_start' and
+        The integer 'interval_end' represents the amount of hours subtracted from the beginning of the session
+        to determine the end of the interval in which we load covariate measurements. For each row, covariate
+        measurements are loaded in the interval between 'start_timestamp' - 'interval_start' and
         'start_timestamp' - 'interval_end'.
     shift_forward: Optional[bool]
         If 'shift_forward' == True, then 30 minutes are added to the 'interval_end'. In consequence, if there are no
@@ -134,12 +138,18 @@ def __get_measurements(dl,
         name = '{}'.format(covariate)
         measurements = df_measurements[df_measurements.pacmed_name == name]
 
+        # If there are no measurements in the selected time interval, return np.NaN
         if len(measurements) == 0:
             measurement = np.NaN
+        # If there are measurements in the selected time interval and before the start of the session, return
+        # the last measurement before the start of the session
         elif len(measurements[measurements.effective_timestamp <= start_timestamp]) > 0:
             measurements = measurements[measurements.effective_timestamp <= start_timestamp]
             measurements = measurements.sort_values(by=['effective_timestamp'], ascending=False)
             measurement = measurements.numerical_value.iloc[0]
+        # If there are measurements in the selected time interval only after the start of the session, return the
+        # first measurement after the start of the session. Measurements after the start of the session will be loaded
+        # only if shift_forward == True.
         else:
             measurements = measurements.sort_values(by=['effective_timestamp'], ascending=True)
             measurement = measurements.numerical_value.iloc[0]

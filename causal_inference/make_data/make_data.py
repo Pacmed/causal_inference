@@ -66,7 +66,7 @@ class UseCaseLoader(DataLoader):
                                 save_path:str,
                                 min_length_of_artificial_session:Optional[int]=8,
                                 n_of_batches:Optional[int]=None):
-        """Creates artificial supine sessions from supine sessions longer than 'min_length_of_session'.
+        """Creates artificial supine sessions from supine sessions longer than 'min_length_of_artificial_session'.
 
         For each supine session, all measurements of INCLUSION_PARAMETERS are loaded from the data warehouse. If there is
         a full hour between the 'start_timestamp' and 'end_timestamp' of the original session in which all
