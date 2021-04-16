@@ -114,7 +114,8 @@ def _split_control_observation(dl,
         df_measurements.loc[:, 'treated'] = False
         df_measurements.loc[:, 'pacmed_origin_hospital'] = pacmed_origin_hospital
         df_measurements.loc[:, 'end_timestamp'] = end_timestamp
-
+        df_measurements.start_timestamp = df_measurements.start_timestamp.astype('datetime64[ns]')
+        df_measurements.end_timestamp = df_measurements.end_timestamp.astype('datetime64[ns]')
         df_measurements.loc[:, 'duration_hours'] = df_measurements['end_timestamp'] - df_measurements['start_timestamp']
         df_measurements.loc[:, 'duration_hours'] = df_measurements['duration_hours'].astype('timedelta64[h]')
         df_measurements.loc[:, 'duration_hours'] = df_measurements['duration_hours'].astype('int')

@@ -1,23 +1,15 @@
 """ Module for extracting observational data set from the Data Warehouse. """
 
-from numpy import median
-
-import os, sys, random
-
-import pandas as pd
-import numpy as np
-
-from datetime import timedelta, date
-from importlib import reload
+from datetime import timedelta
 from data_warehouse_utils.dataloader import DataLoader
 
-from causal_inference.make_data.create_observations import create_observations
+from causal_inference.old.create_observations import create_observations
 from causal_inference.make_data.create_covariates import add_covariates
 from causal_inference.make_data.create_control import create_control_observations
 from causal_inference.make_data.make_outcome import add_outcomes
+
 from causal_inference.make_data.create_medications import get_medications
-from causal_inference.make_data.utils import optimize_dtypes
-from causal_inference.make_data.create_outcome_old import get_pf_ratio_as_outcome
+
 
 
 class UseCaseLoader(DataLoader):

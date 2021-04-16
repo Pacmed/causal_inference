@@ -177,7 +177,7 @@ def _get_measurements(dl,
     interval_start = start_timestamp - timedelta(hours=interval_start)
     interval_end = start_timestamp - timedelta(hours=interval_end)
     if shift_forward:
-        interval_end + timedelta(minutes=30)
+        interval_end + timedelta(minutes=30) # BUG!
 
     measurements = dl.get_single_timestamp(patients=[patient_id],
                                            parameters=covariates,
