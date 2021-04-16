@@ -194,9 +194,9 @@ class Experiment:
         # Adjust model_name
         model_name = model_name[0: model_name.index("(")]
 
-        np.savetxt(f'pred_{model_name}.csv', self.pred_, delimiter=",", fmt='%1.2f')
-        np.savetxt(f'results_{model_name}.csv', self.results_, delimiter=",", fmt='%1.2f')
-        np.savetxt(f'summary_{model_name}.csv', self.summary_, delimiter=",", fmt='%1.2f')
+        self.pred_.to_csv(f'pred_{model_name}.csv',float_format='%1.2f', header=True, index=True)
+        self.results_.to_csv(f'results_{model_name}.csv', float_format='%1.2f', header=True, index=True)
+        self.summary_.to_csv(f'summary_{model_name}.csv', float_format='%1.2f', header=True, index=True)
 
         # TO DO: save model's hyperparameters
 
