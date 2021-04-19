@@ -1,9 +1,47 @@
-import pandas as pd
-import numpy as np
+import sys
+import time
 import datetime
 
-from typing import List
+import pandas as pd
+import numpy as np
 
+from typing import List, Optional
+
+
+def print_percent_done(index:int, total:int, bar_len:Optional[int]=50, title:Optional[str]='Please wait'):
+    """Prints a progress bar.
+
+    Parameters
+    ---------
+    index : int
+        Index is expected to be a 0 based index : 0 <= index < total.
+    total : int
+        Total number of indexes.
+    bar_len : int
+        Length of the progress bar being printed.
+    title : str
+        Title of the progress bar being printed.
+
+    Returns
+    -------
+    z : None
+    """
+
+    percent_done = (index+1)/total*100
+    percent_done = round(percent_done, 1)
+
+    done = round(percent_done/(100/bar_len))
+    togo = bar_len-done
+
+    done_str = '█'*int(done)
+    togo_str = '░'*int(togo)
+
+    print(f'\t⏳{title}: [{done_str}{togo_str}] {percent_done}% done', end='\r')
+
+    if round(percent_done) == 100:
+        print('\t✅')
+
+    return None
 
 def groupby_measurements(hash_session_id,
                          interval_end,
