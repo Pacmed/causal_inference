@@ -8,6 +8,14 @@ import numpy as np
 from typing import List, Optional
 
 
+def progress(percent=0, width=30):
+    left = width * percent // 100
+    right = width - left
+    print('\r[', '#' * left, ' ' * right, ']',
+          f' {percent:.0f}%',
+          sep='', end='', flush=True)
+
+
 def print_percent_done(index:int, total:int, bar_len:Optional[int]=50, title:Optional[str]='Please wait'):
     """Prints a progress bar.
 

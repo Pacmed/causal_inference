@@ -8,6 +8,8 @@ from typing import Optional, List
 from datetime import timedelta
 from data_warehouse_utils.dataloader import DataLoader
 
+from causal_inference.make_data.utils import print_percent_done, progress
+
 INCLUSION_PARAMETERS = ['fio2', 'peep', 'po2_arterial', 'po2_unspecified', 'po2']
 
 INCLUSION_CRITERIA = ['fio2', 'peep', 'po2']
@@ -66,19 +68,23 @@ def make_artificial_sessions(dl: DataLoader,
         return pd.DataFrame([])
 
     # For each session, split the supine session.
+    print(df.info())
+    length_df = df.shape[0]
     df_new = [__split_supine_session(dl=dl,
-                                    hash_session_id=row.hash_session_id,
-                                    hash_patient_id=row.hash_patient_id,
-                                    episode_id=row.episode_id,
-                                    start_timestamp=row.start_timestamp,
-                                    end_timestamp=row.end_timestamp,
-                                    effective_value=row.effective_value,
-                                    is_correct_unit_yn=row.is_correct_unit_yn,
-                                    hospital=row.hospital,
-                                    ehr=row.ehr,
-                                    end_timestamp_adjusted_hours=row.end_timestamp_adjusted_hours,
-                                    min_length_of_artificial_session=min_length_of_artificial_session)
-              for row in df.itertuples(index=False)]
+                                     hash_session_id=row.hash_session_id,
+                                     hash_patient_id=row.hash_patient_id,
+                                     episode_id=row.episode_id,
+                                     start_timestamp=row.start_timestamp,
+                                     end_timestamp=row.end_timestamp,
+                                     effective_value=row.effective_value,
+                                     is_correct_unit_yn=row.is_correct_unit_yn,
+                                     hospital=row.hospital,
+                                     ehr=row.ehr,
+                                     end_timestamp_adjusted_hours=row.end_timestamp_adjusted_hours,
+                                     min_length_of_artificial_session=min_length_of_artificial_session,
+                                     idx=row.Index,
+                                     length_df=length_df)
+              for row in df.itertuples()]
 
     # Initialize columns
     if not('artificial_session' in df.columns):
@@ -97,7 +103,8 @@ def make_artificial_sessions(dl: DataLoader,
 def __split_supine_session(dl:DataLoader, hash_session_id:str, hash_patient_id:str, episode_id:str,
                            start_timestamp:np.datetime64, end_timestamp:np.datetime64,
                            effective_value:str, is_correct_unit_yn:bool, hospital:str, ehr:str,
-                           end_timestamp_adjusted_hours:int, min_length_of_artificial_session:min):
+                           end_timestamp_adjusted_hours:int, min_length_of_artificial_session:min,
+                           idx:Optional[int]=None, length_df:Optional[int]=None):
     """Private function to create artificial supine sessions in batches.
 
     For each supine session:
@@ -137,12 +144,20 @@ def __split_supine_session(dl:DataLoader, hash_session_id:str, hash_patient_id:s
         Hours by which a prone session was adjusted.
     min_length_of_artificial_session : int
         Minimum length of an artificial supine session.
+    idx : Optional[int]
+        Index of the session being processed.
+    length_df : Optional[int]
+        Total number of sessions to be processed.
 
     Returns
     -------
     df_measurements : pd.Dataframe
         Artificial supine sessions created from a single supine session.
     """
+
+    # Make a progress bar
+    #if not ((idx is None) | (length_df is None)): print_percent_done(index=idx, total=length_df)
+    if not ((idx is None) | (length_df is None)): print(f'Processing {idx} out of {length_df} sessions', end='\r')
 
     ############
     ### LOAD ###
@@ -157,6 +172,7 @@ def __split_supine_session(dl:DataLoader, hash_session_id:str, hash_patient_id:s
                                                                    end_timestamp=end_timestamp_modified)
 
     if len(df_measurements) == 0: return pd.DataFrame([])
+    if not set(INCLUSION_CRITERIA).issubset(df_measurements.pacmed_name.to_list()): return pd.DataFrame([])
 
     ########################################################################################################
     ### Split the loaded measurements by rounding down the 'effective_timestamp' of each measurement.    ###

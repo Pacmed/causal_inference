@@ -47,9 +47,11 @@ def make_proning_sessions(path:str, n_of_batches:Optional[str]=None):
     if not (n_of_batches is None): df = limit_n_of_batches(df, n_of_batches)
     
     # Use BATCH_COL to split the data into batches
-    batch_list = df[BATCH_COL].to_list()
-    df_sessions = [make_proning_sessions_batch(df.loc[df[BATCH_COL] == batch_val])
-                   for _, batch_val in enumerate(batch_list)]
+    batch_list = df[BATCH_COL].unique().tolist()
+    n_of_batches = len(batch_list)
+    # For each unique BATCH_COL
+    df_sessions = [make_proning_sessions_batch(df.loc[df[BATCH_COL] == batch_val], idx, n_of_batches)
+                   for idx, batch_val in enumerate(batch_list)]
 
     if df_sessions:
         df_sessions = pd.concat(df_sessions).reset_index(drop=True)
@@ -106,7 +108,7 @@ def save_processed_sessions_data(df:pd.DataFrame, path:str):
 
     return None
 
-def make_proning_sessions_batch(df:pd.DataFrame):
+def make_proning_sessions_batch(df:pd.DataFrame, idx, n_of_batches):
     """Transforms a single batch of the raw position measurement data into a data frame with each row being a
      unique prone or supine session.
 
@@ -117,12 +119,17 @@ def make_proning_sessions_batch(df:pd.DataFrame):
     ----------
     df : pd.DataFrame
         Raw data loaded with 'load_row_position_data' with a single value for BATCH_COL.
+    idx : int
+        Index of the processed batch.
+    n_of_batches : int
+        Total number of batches to process.
 
     Returns
     -------
     df_session : pd.DataFrame
         Dataframe with with each row being a unique prone or supine session for a single value of BATCH_COL.
     """
+    if not ((idx is None) | (n_of_batches is None)): print(f'Processing {idx} out of {n_of_batches} batches.', end='\r')
 
     df_sessions = df[df['pacmed_subname'] == 'position_body']
     if len(df_sessions.index) == 0: return pd.DataFrame([])
