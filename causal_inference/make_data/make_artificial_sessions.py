@@ -212,7 +212,12 @@ def __split_supine_session(dl:DataLoader, hash_session_id:str, hash_patient_id:s
     df_measurements.loc[:, 'duration_hours'] = df_measurements['duration_hours'].astype('int')
     df_measurements['artificial_session'] = True
 
-    return df_measurements[COLUMNS_SESSIONS]
+    try:
+        df_measurements = df_measurements[COLUMNS_SESSIONS]
+    except KeyError:
+        df_measurements = pd.DataFrame([])
+
+    return df_measurements
 
 
 def __aggfunc_last(x:np.ndarray):

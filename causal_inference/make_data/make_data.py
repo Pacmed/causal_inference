@@ -11,6 +11,7 @@ from causal_inference.make_data.make_proning_sessions import make_proning_sessio
 from causal_inference.make_data.make_artificial_sessions import make_artificial_sessions, load_position_data
 from causal_inference.make_data.make_artificial_sessions import INCLUSION_CRITERIA, INCLUSION_PARAMETERS
 from causal_inference.make_data.make_covariates import make_covariates, construct_pf_ratio
+from causal_inference.make_data.make_outcome import add_outcomes
 
 
 class UseCaseLoader(DataLoader):
@@ -196,6 +197,16 @@ class UseCaseLoader(DataLoader):
                                             shift_forward=shift_forward)
             df = pd.merge(df, df_covariates, how='left', on='hash_session_id')
 
+
+        df.to_csv(path_or_buf=save_path, index=False)
+
+        return None
+
+    def add_outcomes(self, load_path, save_path):
+
+        df = load_position_data(path=load_path)
+
+        df = add_outcomes(self=self, df=df)
 
         df.to_csv(path_or_buf=save_path, index=False)
 
