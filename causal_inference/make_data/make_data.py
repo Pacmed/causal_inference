@@ -10,10 +10,10 @@ from data_warehouse_utils.dataloader import DataLoader
 from causal_inference.make_data.make_proning_sessions import make_proning_sessions, COLUMNS_RAW_DATA
 from causal_inference.make_data.make_artificial_sessions import make_artificial_sessions, load_position_data
 from causal_inference.make_data.make_artificial_sessions import INCLUSION_CRITERIA, INCLUSION_PARAMETERS
-from causal_inference.make_data.make_covariates import make_covariates, construct_pf_ratio
+from causal_inference.make_data.make_covariates import make_covariates, construct_pf_ratio, adjust_columns
 from causal_inference.make_data.make_outcome import add_outcomes
 from causal_inference.make_data.make_medications import get_medications
-from causal_inference.make_data.make_patient_data import add_patients_data
+from causal_inference.make_data.make_patient_data import add_patient_data
 
 
 class UseCaseLoader(DataLoader):
@@ -207,6 +207,19 @@ class UseCaseLoader(DataLoader):
         return None
 
     def add_outcomes(self, load_path, save_path):
+        """Adds outcomes to the data.
+
+        Parameters
+        ----------
+        load_path : str
+            A path to the data with unique supine and prone sessions.
+        save_path : str
+            A path to save the data with outcomes added.
+
+        Returns
+        -------
+        z : None
+        """
 
         df = load_position_data(path=load_path)
 
@@ -217,20 +230,48 @@ class UseCaseLoader(DataLoader):
         return None
 
     def add_patient_data(self, load_path, save_path):
+        """Adds patient data.
+
+        Parameters
+        ----------
+        load_path : str
+            A path to the data with unique supine and prone sessions.
+        save_path : str
+            A path to save the data with patient data added.
+
+        Returns
+        -------
+        z : None
+        """
 
         df = load_position_data(path=load_path)
 
-        df = add_patients_data(dl=self, df=df)
+        df = add_patient_data(dl=self, df=df)
+        df = adjust_columns(df)
 
         df.to_csv(path_or_buf=save_path, index=False)
 
         return None
 
     def add_medications(self, load_path, save_path):
+        """Adds medication data.
+
+        Parameters
+        ----------
+        load_path : str
+            A path to the data with unique supine and prone sessions.
+        save_path : str
+            A path to save the data with medication data added.
+
+        Returns
+        -------
+        z : None
+        """
 
         df = load_position_data(path=load_path)
 
         df = get_medications(dl=self, df=df)
+        df = adjust_columns(df)
 
         df.to_csv(path_or_buf=save_path, index=False)
 
@@ -238,6 +279,27 @@ class UseCaseLoader(DataLoader):
 
     @staticmethod
     def apply_inclusion_criteria(load_path, save_path, max_pf_ratio=150, min_peep=5, min_fio2=60):
+        """Applies inclusion criteria to data.
+
+        Additionally only prone sessions shorter than 96 hours and supine sessions are loaded.
+
+        Parameters
+        ----------
+        load_path : str
+            A path to the data with unique supine and prone sessions.
+        save_path : str
+            A path to save the data that satisfies the inclusion criteria.
+        max_pf_ratio : Optional[int]
+            Only observations with pf_ratio < max_pf_ratio are loaded.
+        min_peep : Optional[int]
+            Only observations with peep => min_peep are loaded.
+        min_fio2 : Optional[int]
+            Only observations with fio2 < min_fio2 are loaded.
+
+        Returns
+        -------
+        z : None
+        """
 
         df = load_position_data(path=load_path)
 
@@ -245,35 +307,5 @@ class UseCaseLoader(DataLoader):
         df = df[(df.pf_ratio < max_pf_ratio) & (df.fio2 >= min_fio2) & (df.peep >= min_peep)]
 
         df.to_csv(path_or_buf=save_path, index=False)
-
-        return None
-
-    @staticmethod
-    def generate_extraction_description(load_path):
-
-        df = load_position_data(load_path)
-        print(f'Loaded with {df.shape[0]} observations.')
-
-        df = df[(df.effective_value == 'prone') | (df.effective_value == 'supine')]
-        df = df[((df.effective_value == 'prone') & (df.duration_hours <= 96)) | (df.effective_value == 'supine')]
-
-        print("Extracted observations:", df.shape[0])
-        print('Prone:', df[(~df.artificial_session) & (df.effective_value == 'prone')].shape[0])
-        print('Supine:', df[(~df.artificial_session) & (df.effective_value == 'supine')].shape[0])
-        print('Artificial supine:', df[df.artificial_session].shape[0])
-
-        df = df.dropna()
-
-        print("Extracted observations w. non-missing inclusion criteria:", df.shape[0])
-        print('Prone:', df[(~df.artificial_session) & (df.effective_value == 'prone')].shape[0])
-        print('Supine:', df[(~df.artificial_session) & (df.effective_value == 'supine')].shape[0])
-        print('Artificial supine:', df[df.artificial_session].shape[0])
-
-        df = df[(df.pf_ratio < 150) & (df.fio2 >= 60) & (df.peep >= 5)]
-
-        print("Extracted observations that satisfy inclusion criteria:", df.shape[0])
-        print('Prone:', df[(~df.artificial_session) & (df.effective_value == 'prone')].shape[0])
-        print('Supine:', df[(~df.artificial_session) & (df.effective_value == 'supine')].shape[0])
-        print('Artificial supine:', df[df.artificial_session].shape[0])
 
         return None

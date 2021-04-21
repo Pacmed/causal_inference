@@ -8,7 +8,6 @@ from typing import Optional, List
 from datetime import timedelta
 from data_warehouse_utils.dataloader import DataLoader
 
-from causal_inference.make_data.utils import print_percent_done, progress
 
 INCLUSION_PARAMETERS = ['fio2', 'peep', 'po2_arterial', 'po2_unspecified', 'po2']
 
@@ -154,10 +153,8 @@ def __split_supine_session(dl:DataLoader, hash_session_id:str, hash_patient_id:s
         Artificial supine sessions created from a single supine session.
     """
 
-    # Make a progress bar
-    #if not ((idx is None) | (length_df is None)): print_percent_done(index=idx, total=length_df)
     if not ((idx is None) | (n_of_sessions is None)):
-        print(f'Processing {idx} out of {n_of_sessions} sessions...', end='\r')
+        print(f'Processing session {idx} out of {n_of_sessions} sessions altogether.', end='\r')
 
     ############
     ### LOAD ###
@@ -322,6 +319,8 @@ def load_position_data(path:str):
         df.start_timestamp = df.start_timestamp.astype('datetime64[ns]')
     if 'end_timestamp' in COLUMNS_SESSIONS:
         df.end_timestamp = df.end_timestamp.astype('datetime64[ns]')
+    if 'death_timestamp' in COLUMNS_SESSIONS:
+        df.death_timestamp = df.death_timestamp.astype('datetime64[ns]')
 
     # Ensure column consistency
     if  len(list(set(COLUMNS_SESSIONS) - set(df.columns.to_list()))) > 0:

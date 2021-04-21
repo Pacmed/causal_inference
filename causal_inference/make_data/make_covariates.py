@@ -201,8 +201,12 @@ def adjust_columns(df):
         A data frame with correct column names.
     """
 
+    if ('bmi' in df.columns) & ('body_mass_index' in df.columns):
+        df.loc[df.body_mass_index.isna(), 'body_mass_index'] = df.loc[df.body_mass_index.isna(), 'bmi']
+        df = df.drop(columns=['bmi'])
+
     if ('cvvh_blood_flow' in df.columns) & ('cvvhd_blood_flow' in df.columns):
-        df['renal_replacement_therapy'] = ~df['cvvh_blood_flow'].isna() | ~df['cvvhd_blood_flow'].isna()
+        df['med_renal_replacement_therapy'] = ~df['cvvh_blood_flow'].isna() | ~df['cvvhd_blood_flow'].isna()
         df = df.drop(columns=['cvvh_blood_flow', 'cvvhd_blood_flow'])
 
     if ('pco2_arterial' in df.columns) & ('pco2_unspecified' in df.columns):
@@ -226,8 +230,8 @@ def adjust_columns(df):
         df = df.rename(columns={'ph_arterial': 'ph'})
         df = df.drop(columns=['ph_unspecified'])
 
-    if ('atc_C01CA03' in df.columns) | ('atc_C01CA04' in df.columns) | ('atc_C01CA24' in df.columns) | \
-        ('atc_H01BA01' in df.columns) | ('atc_H01BA04' in df.columns):
+    if ('atc_C01CA03' in df.columns) & ('atc_C01CA04' in df.columns) & ('atc_C01CA24' in df.columns) | \
+        ('atc_H01BA01' in df.columns) & ('atc_H01BA04' in df.columns):
         df['med_vasopressors'] = df['atc_C01CA03'] | \
                                  df['atc_C01CA04'] | \
                                  df['atc_C01CA24'] | \
@@ -240,7 +244,7 @@ def adjust_columns(df):
         df = df.drop(columns=['atc_H02A'])
 
     if 'atc_M03' in df.columns:
-        df['med_muscle_relaxants'] = df['atc_M03']
+        df['med_neuromuscular_blockers'] = df['atc_M03']
         df = df.drop(columns=['atc_M03'])
 
     return df

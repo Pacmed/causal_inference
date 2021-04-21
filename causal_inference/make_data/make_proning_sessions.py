@@ -130,7 +130,8 @@ def make_proning_sessions_batch(df:pd.DataFrame, idx, n_of_batches):
     df_session : pd.DataFrame
         Dataframe with with each row being a unique prone or supine session for a single value of BATCH_COL.
     """
-    if not ((idx is None) | (n_of_batches is None)): print(f'Processing {idx} out of {n_of_batches} batches.', end='\r')
+    if not ((idx is None) | (n_of_batches is None)):
+        print(f'Processing session {idx} out of {n_of_batches} batches altogether.', end='\r')
 
     df_sessions = df[df['pacmed_subname'] == 'position_body']
     if len(df_sessions.index) == 0: return pd.DataFrame([])
@@ -249,8 +250,6 @@ def adjust_for_bed_rotation(df_sessions:pd.DataFrame, df_rotation:pd.DataFrame):
     df : pd.DataFrame
         A batch of processed data with 'end_timestamp' column adjusted.
     """
-
-    # Adjust only
 
     # Load bed rotations
     df_rotation = df_rotation.loc[(df_rotation.effective_value == '30_degrees') |
