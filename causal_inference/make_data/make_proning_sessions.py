@@ -49,7 +49,8 @@ def make_proning_sessions(path:str, n_of_batches:Optional[str]=None):
     # Use BATCH_COL to split the data into batches
     batch_list = df[BATCH_COL].unique().tolist()
     n_of_batches = len(batch_list)
-    # For each unique BATCH_COL
+
+    ### Split data, for each unique BATCH_COL value, into unique prone and supine sessions. ###
     df_sessions = [make_proning_sessions_batch(df.loc[df[BATCH_COL] == batch_val], idx, n_of_batches)
                    for idx, batch_val in enumerate(batch_list)]
 

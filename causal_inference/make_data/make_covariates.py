@@ -62,6 +62,8 @@ def make_covariates(dl:DataLoader,
     if 'fio2' in df.columns:
         if 'fio2' in covariates: covariates.remove('fio2')
 
+    n_of_observations = df.shape[0]
+
     df_measurements = [__get_measurements(dl=dl,
                                           hash_session_id=row.hash_session_id,
                                           hash_patient_id=row.hash_patient_id,
@@ -69,7 +71,9 @@ def make_covariates(dl:DataLoader,
                                           covariates=covariates,
                                           interval_start=interval_start,
                                           interval_end=interval_end,
-                                          shift_forward=shift_forward) for row in df.itertuples(index=False)]
+                                          shift_forward=shift_forward,
+                                          idx=row.Index,
+                                          n_of_observations=n_of_observations) for row in df.itertuples()]
 
     if len(df_measurements) > 0:
         df_measurements = pd.concat(df_measurements).\
@@ -81,14 +85,16 @@ def make_covariates(dl:DataLoader,
     return df_measurements
 
 
-def __get_measurements(dl,
-                       hash_session_id,
-                       hash_patient_id,
-                       start_timestamp,
-                       covariates,
-                       interval_start,
-                       interval_end,
-                       shift_forward
+def __get_measurements(dl:DataLoader,
+                       hash_session_id:str,
+                       hash_patient_id:str,
+                       start_timestamp:np.datetime64,
+                       covariates:List[str],
+                       interval_start:int,
+                       interval_end:int,
+                       shift_forward:bool,
+                       idx:int,
+                       n_of_observations:int
                        ):
     """A private function to load covariates per row / in batches.
 
@@ -112,12 +118,19 @@ def __get_measurements(dl,
         If 'shift_forward' == True, then 30 minutes are added to the 'interval_end'. In consequence, if there are no
         measurements loaded for the original interval, then the first measurement in the interval after 'start_timestamp'
         is loaded.
+    idx : int
+        Index of the observation to be processed.
+    n_of_observations : int
+        Total number of observations to be processed.
 
     Returns
     -------
     df_covariates : pd.DataFrame
         Data with covariates.
     """
+
+    if not ((idx is None) | (n_of_observations is None)):
+        print(f'Processing {idx} out of {n_of_observations} sessions...', end='\r')
 
     ### Define the interval in which measurements should be loaded. ###
     interval_start = start_timestamp - timedelta(hours=interval_start)
@@ -249,7 +262,7 @@ def construct_pf_ratio(df):
     if 'pf_ratio' in df.columns:
         print("P/F ratio measurements already exist.")
     else:
-        df['pf_ratio'] = 0
+        df['pf_ratio'] = np.NaN
         if ('po2' in df.columns) & ('fio2' in df.columns):
             pf_ratio_is_na = df.po2.isna() | df.fio2.isna()
             df.loc[~pf_ratio_is_na, 'pf_ratio'] = df.loc[~pf_ratio_is_na, 'po2'] / df.loc[~pf_ratio_is_na, 'fio2']

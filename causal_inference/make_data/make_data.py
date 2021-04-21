@@ -12,6 +12,8 @@ from causal_inference.make_data.make_artificial_sessions import make_artificial_
 from causal_inference.make_data.make_artificial_sessions import INCLUSION_CRITERIA, INCLUSION_PARAMETERS
 from causal_inference.make_data.make_covariates import make_covariates, construct_pf_ratio
 from causal_inference.make_data.make_outcome import add_outcomes
+from causal_inference.make_data.make_medications import get_medications
+from causal_inference.make_data.make_patient_data import add_patients_data
 
 
 class UseCaseLoader(DataLoader):
@@ -121,16 +123,18 @@ class UseCaseLoader(DataLoader):
         df = load_position_data(path=load_path)
 
         # If INCLUSION_CRITERIA are already initialized in the data, then add only the missing values
-        if set(INCLUSION_CRITERIA) <= set(df.columns):
-            inclusion_criteria = make_covariates(self, df[df.isna().any(axis=1)], covariates=INCLUSION_PARAMETERS)
+        if set(INCLUSION_CRITERIA) <= set(df.columns.to_list()):
+            print('Columns', INCLUSION_CRITERIA, 'already initialized. Loading covariates only for missing values.')
+            df_inclusion = df[df.isna().any(axis=1)].drop(columns=INCLUSION_CRITERIA)
+            df_inclusion = make_covariates(self, df_inclusion, covariates=INCLUSION_PARAMETERS)
 
             # Add each inclusion criteria to the data separately
             for inclusion_criterion in INCLUSION_CRITERIA:
-                df.loc[df.isna().any(axis=1), inclusion_criterion] = inclusion_criteria.loc[:, inclusion_criterion]
+                df.loc[df.isna().any(axis=1), inclusion_criterion] = df_inclusion.loc[:, inclusion_criterion]
 
         else:
-            inclusion_criteria = make_covariates(self, df, covariates=INCLUSION_PARAMETERS)
-            df = pd.merge(df, inclusion_criteria, how='left', on='hash_session_id')
+            df_inclusion = make_covariates(self, df, covariates=INCLUSION_PARAMETERS)
+            df = pd.merge(df, df_inclusion, how='left', on='hash_session_id')
 
         df = construct_pf_ratio(df)
         df.to_csv(path_or_buf=save_path, index=False)
@@ -206,8 +210,70 @@ class UseCaseLoader(DataLoader):
 
         df = load_position_data(path=load_path)
 
-        df = add_outcomes(self=self, df=df)
+        df = add_outcomes(dl=self, df=df)
 
         df.to_csv(path_or_buf=save_path, index=False)
+
+        return None
+
+    def add_patient_data(self, load_path, save_path):
+
+        df = load_position_data(path=load_path)
+
+        df = add_patients_data(dl=self, df=df)
+
+        df.to_csv(path_or_buf=save_path, index=False)
+
+        return None
+
+    def add_medications(self, load_path, save_path):
+
+        df = load_position_data(path=load_path)
+
+        df = get_medications(dl=self, df=df)
+
+        df.to_csv(path_or_buf=save_path, index=False)
+
+        return None
+
+    @staticmethod
+    def apply_inclusion_criteria(load_path, save_path, max_pf_ratio=150, min_peep=5, min_fio2=60):
+
+        df = load_position_data(path=load_path)
+
+        df = df[((df.effective_value == 'prone') & (df.duration_hours <= 96)) | (df.effective_value == 'supine')]
+        df = df[(df.pf_ratio < max_pf_ratio) & (df.fio2 >= min_fio2) & (df.peep >= min_peep)]
+
+        df.to_csv(path_or_buf=save_path, index=False)
+
+        return None
+
+    @staticmethod
+    def generate_extraction_description(load_path):
+
+        df = load_position_data(load_path)
+        print(f'Loaded with {df.shape[0]} observations.')
+
+        df = df[(df.effective_value == 'prone') | (df.effective_value == 'supine')]
+        df = df[((df.effective_value == 'prone') & (df.duration_hours <= 96)) | (df.effective_value == 'supine')]
+
+        print("Extracted observations:", df.shape[0])
+        print('Prone:', df[(~df.artificial_session) & (df.effective_value == 'prone')].shape[0])
+        print('Supine:', df[(~df.artificial_session) & (df.effective_value == 'supine')].shape[0])
+        print('Artificial supine:', df[df.artificial_session].shape[0])
+
+        df = df.dropna()
+
+        print("Extracted observations w. non-missing inclusion criteria:", df.shape[0])
+        print('Prone:', df[(~df.artificial_session) & (df.effective_value == 'prone')].shape[0])
+        print('Supine:', df[(~df.artificial_session) & (df.effective_value == 'supine')].shape[0])
+        print('Artificial supine:', df[df.artificial_session].shape[0])
+
+        df = df[(df.pf_ratio < 150) & (df.fio2 >= 60) & (df.peep >= 5)]
+
+        print("Extracted observations that satisfy inclusion criteria:", df.shape[0])
+        print('Prone:', df[(~df.artificial_session) & (df.effective_value == 'prone')].shape[0])
+        print('Supine:', df[(~df.artificial_session) & (df.effective_value == 'supine')].shape[0])
+        print('Artificial supine:', df[df.artificial_session].shape[0])
 
         return None

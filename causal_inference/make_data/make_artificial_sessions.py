@@ -60,16 +60,15 @@ def make_artificial_sessions(dl: DataLoader,
 
     # Select supine sessions.
     if 'effective_value' in df.columns:
-        df = df[df.effective_value == 'supine']
+        df_supine = df[df.effective_value == 'supine']
     elif 'treated' in df.columns:
-        df = df[~df.treated]
+        df_supine = df[~df.treated]
     else:
         print("No treatment indicator column found.")
         return pd.DataFrame([])
 
-    # For each session, split the supine session.
-    print(df.info())
-    length_df = df.shape[0]
+    # For each supine session, create artificial supine sessions.
+    n_of_sessions = df.shape[0]
     df_new = [__split_supine_session(dl=dl,
                                      hash_session_id=row.hash_session_id,
                                      hash_patient_id=row.hash_patient_id,
@@ -83,10 +82,10 @@ def make_artificial_sessions(dl: DataLoader,
                                      end_timestamp_adjusted_hours=row.end_timestamp_adjusted_hours,
                                      min_length_of_artificial_session=min_length_of_artificial_session,
                                      idx=row.Index,
-                                     length_df=length_df)
-              for row in df.itertuples()]
+                                     n_of_sessions=n_of_sessions)
+              for row in df_supine.itertuples()]
 
-    # Initialize columns
+    # Initialize columns in the original dataframe
     if not('artificial_session' in df.columns):
         df['artificial_session'] = False
     for inclusion_criterion in INCLUSION_CRITERIA:
@@ -104,7 +103,7 @@ def __split_supine_session(dl:DataLoader, hash_session_id:str, hash_patient_id:s
                            start_timestamp:np.datetime64, end_timestamp:np.datetime64,
                            effective_value:str, is_correct_unit_yn:bool, hospital:str, ehr:str,
                            end_timestamp_adjusted_hours:int, min_length_of_artificial_session:min,
-                           idx:Optional[int]=None, length_df:Optional[int]=None):
+                           idx:Optional[int]=None, n_of_sessions:Optional[int]=None):
     """Private function to create artificial supine sessions in batches.
 
     For each supine session:
@@ -157,7 +156,8 @@ def __split_supine_session(dl:DataLoader, hash_session_id:str, hash_patient_id:s
 
     # Make a progress bar
     #if not ((idx is None) | (length_df is None)): print_percent_done(index=idx, total=length_df)
-    if not ((idx is None) | (length_df is None)): print(f'Processing {idx} out of {length_df} sessions', end='\r')
+    if not ((idx is None) | (n_of_sessions is None)):
+        print(f'Processing {idx} out of {n_of_sessions} sessions...', end='\r')
 
     ############
     ### LOAD ###
@@ -324,7 +324,7 @@ def load_position_data(path:str):
         df.end_timestamp = df.end_timestamp.astype('datetime64[ns]')
 
     # Ensure column consistency
-    if not np.all(df.columns.isin(COLUMNS_SESSIONS)):
-        print("The loaded file is not compatible. Use UseCaseLoader to extract raw data!")
+    if  len(list(set(COLUMNS_SESSIONS) - set(df.columns.to_list()))) > 0:
+        print(f'The following columns {list(set(COLUMNS_SESSIONS)-set(df.columns.to_list()))} were not loaded.')
 
     return df

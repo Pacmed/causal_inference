@@ -120,9 +120,9 @@ def __get_pf_ratio_as_outcome(hash_patient_id, start_timestamp, end_timestamp, d
     end_last = min(end_timestamp, start_timestamp + timedelta(hours=interval_last[1]))
 
     # Load corresponding single timestamp measurements used to construct the outcomes
-    expr = 'hash_patient_id == @patient_id and @start_first <= effective_timestamp <= @end_first'
+    expr = 'hash_patient_id == @hash_patient_id and @start_first <= effective_timestamp <= @end_first'
     results_first = df_measurements.query(expr=expr).sort_values(by='effective_timestamp', ascending=True)
-    expr = 'hash_patient_id == @patient_id and @start_last <= effective_timestamp <= @end_last'
+    expr = 'hash_patient_id == @hash_patient_id and @start_last <= effective_timestamp <= @end_last'
     results_last = df_measurements.query(expr=expr).sort_values(by='effective_timestamp', ascending=True)
 
     pf_ratio_first = __get_pao2_over_fio2(results_first)
