@@ -1,12 +1,10 @@
 from __future__ import print_function, division
-import os
 import torch
 import pandas as pd
 #from skimage import io, transform
 import numpy as np
 import matplotlib.pyplot as plt
-from torch.utils.data import Dataset, DataLoader
-from torchvision import transforms, utils
+from torch.utils.data import Dataset
 from torch.utils.data import random_split
 
 # Ignore warnings
@@ -15,10 +13,8 @@ warnings.filterwarnings("ignore")
 
 plt.ion()   # interactive mode
 
-from causal_inference.causal_data_handler.get_data import process_data
-from causal_inference.causal_data_handler.get_data import get_training_indices
-from causal_inference.causal_data_handler.get_data import get_data
-from causal_inference.causal_data_handler.get_data import get_covariate_names
+from causal_inference.old.get_data import process_data
+from causal_inference.old.get_data import get_data
 
 
 class UseCase(Dataset):
