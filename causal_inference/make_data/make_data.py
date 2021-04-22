@@ -11,7 +11,7 @@ from causal_inference.make_data.make_proning_sessions import make_proning_sessio
 from causal_inference.make_data.make_artificial_sessions import make_artificial_sessions, load_position_data
 from causal_inference.make_data.make_artificial_sessions import INCLUSION_CRITERIA, INCLUSION_PARAMETERS
 from causal_inference.make_data.make_covariates import make_covariates, construct_pf_ratio, adjust_columns
-from causal_inference.make_data.make_outcome import add_outcomes
+from causal_inference.make_data.make_outcome import make_outcomes
 from causal_inference.make_data.make_medications import get_medications
 from causal_inference.make_data.make_patient_data import add_patient_data
 
@@ -223,7 +223,7 @@ class UseCaseLoader(DataLoader):
 
         df = load_position_data(path=load_path)
 
-        df = add_outcomes(dl=self, df=df)
+        df = make_outcomes(dl=self, df=df)
 
         df.to_csv(path_or_buf=save_path, index=False)
 

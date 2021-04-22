@@ -13,7 +13,7 @@ EARLY_PRONING_EFFECT = [2, 8]
 LATE_PRONING_EFFECT = [12, 24]
 
 
-def add_outcomes(dl: DataLoader, df: pd.DataFrame, df_measurements: Optional[pd.DataFrame] = None):
+def make_outcomes(dl: DataLoader, df: pd.DataFrame, df_measurements: Optional[pd.DataFrame] = None):
     """This function loads outcome values for each row of the input data.
 
     Two distinct outcomes are loaded. The first outcome corresponds to the interval EARLY_PRONING_EFFECT.
