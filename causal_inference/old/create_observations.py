@@ -6,17 +6,16 @@ Each observation contains all the inclusion criteria: 'po2', 'fio2', 'peep'.
 """
 
 import pandas as pd
-import numpy as np
 
 from typing import Optional
 
 from data_warehouse_utils.dataloader import DataLoader
 
-from causal_inference.create_experiment.create_treatment import get_proning_data
-from causal_inference.create_experiment.create_treatment import add_treatment_column
-from causal_inference.create_experiment.create_control import create_control_observations
-from causal_inference.create_experiment.create_covariates import add_covariates
-from causal_inference.create_experiment.utils import add_pf_ratio
+from causal_inference.old.create_treatment import get_proning_data
+from causal_inference.old.create_treatment import add_treatment_column
+from causal_inference.old.create_control import create_control_observations
+from causal_inference.old.create_covariates import add_covariates
+from causal_inference.make_data.utils import add_pf_ratio
 
 INCLUSION_PARAMETERS = ['fio2',
                         'peep',
