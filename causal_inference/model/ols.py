@@ -6,8 +6,9 @@ import statsmodels.api as sm
 from sklearn.base import BaseEstimator
 from typing import Optional
 from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
+from sklearn.metrics import r2_score, mean_squared_error
 
-from causal_inference.model.utils import calculate_rmse, calculate_r2, check_X_t
+from causal_inference.model.utils import check_X_t
 
 
 class OLS(BaseEstimator):
@@ -57,8 +58,8 @@ class OLS(BaseEstimator):
 
         # Store metrics/effects on the training data.
         y_f = self.model_.predict(X)
-        self.rmse_ = calculate_rmse(y_true=y, y_pred=y_f)
-        self.r2_ = calculate_r2(y_true=y, y_pred=y_f)
+        self.rmse_ = mean_squared_error(y_true=y, y_pred=y_f, squared=False)
+        self.r2_ = r2_score(y_true=y, y_pred=y_f)
         self.ate_ = self.predict_ate()
 
         return self

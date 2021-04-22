@@ -5,13 +5,11 @@ import numpy as np
 import statsmodels.api as sm
 from sklearn.base import BaseEstimator
 from typing import Optional, List
-from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
-from statsmodels.tools.eval_measures import rmse
-from sklearn.utils.multiclass import unique_labels
-from sklearn.metrics import euclidean_distances
+from sklearn.utils.validation import check_X_y, check_array
+from sklearn.metrics import r2_score, mean_squared_error
 
 from causal_inference.model.propensity import PropensityScore
-from causal_inference.model.utils import calculate_rmse, calculate_r2, check_X_t
+from causal_inference.model.utils import check_X_t
 
 ### CONSTANTS ###
 
@@ -127,8 +125,8 @@ class Blocking(BaseEstimator):
 
         y_f = [self.model_[i].predict(X[i]) for i in range(len(X))]
 
-        self.rmse_ = [calculate_rmse(y[i], y_f[i]) for i in range(len(y))]
-        self.r2_ = [calculate_r2(y[i], y_f[i]) for i in range(len(y))]
+        self.rmse_ = [mean_squared_error(y[i], y_f[i], squared=False) for i in range(len(y))]
+        self.r2_ = [r2_score(y[i], y_f[i]) for i in range(len(y))]
         self.ate_ = [self.model_[i].params[1] for i in range(len(y))]
 
         self.rmse_ = np.average(self.rmse_, weights=n)

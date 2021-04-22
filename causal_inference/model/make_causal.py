@@ -1,15 +1,13 @@
 """Converts any scikit model into a causal simple model (S-learner)."""
 
 import numpy as np
-import statsmodels.api as sm
-from sklearn.base import BaseEstimator, ClassifierMixin, TransformerMixin
+from sklearn.base import BaseEstimator
 from typing import Optional
-from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
-from statsmodels.tools.eval_measures import rmse
-from sklearn.utils.multiclass import unique_labels
-from sklearn.metrics import euclidean_distances
 
-from causal_inference.model.utils import calculate_rmse, calculate_r2, check_X_t
+from sklearn.metrics import r2_score, mean_squared_error
+
+
+from causal_inference.model.utils import check_X_t
 
 class CausalModel(BaseEstimator):
     """Wraps a model with scikit-learn API to be causal e.g. accept treatments to the fit function."""
@@ -45,8 +43,8 @@ class CausalModel(BaseEstimator):
 
         # Additionally storing the training metrics and effect
         y_pred = self.model_.predict(X)
-        self.rmse_ = calculate_rmse(y, y_pred)
-        self.r2_ = calculate_r2(y, y_pred) # TO DO: check the r2 metric consistency across models
+        self.rmse_ = mean_squared_error(y, y_pred, squared=False)
+        self.r2_ = r2_score(y, y_pred)
         self.ate_ = self.predict_ate(X)
 
         self.is_fitted_ = True

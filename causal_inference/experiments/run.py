@@ -8,11 +8,12 @@ import numpy as np
 
 from typing import Optional, List
 from sklearn.base import BaseEstimator
+from sklearn.metrics import r2_score, mean_squared_error
 
 from causal_inference.model.propensity import PropensityScore
 from causal_inference.experiments.summary import summary
 from causal_inference.model.make_causal import check_model
-from causal_inference.model.utils import calculate_rmse, calculate_r2, check_treatment_indicator
+from causal_inference.model.utils import check_treatment_indicator
 
 class Experiment:
     """ Trains, evaluates and tests a model on bootstrap samples.
@@ -139,8 +140,8 @@ class Experiment:
                 self.cf_ = causal_model.predict_cf(X, t)
 
             # Store metrics/effects
-            self.rmse_test.append(calculate_rmse(y, y_f))
-            self.r2_test.append(calculate_r2(y, y_f))
+            self.rmse_test.append(mean_squared_error(y_true=y, y_pred=y_f, squared=False))
+            self.r2_test.append(r2_score(y_true=y, y_pred=y_f))
             self.ate_test.append(causal_model.predict_ate(X, t))
 
         ###################
