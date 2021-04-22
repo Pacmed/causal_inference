@@ -254,7 +254,7 @@ def adjust_columns(df):
         df = df.drop(columns=['bicarbonate_unspecified'])
 
     if 'bicarbonate_arterial' in df.columns:
-        df = df.rename(columns={'bicarbonate_arterial': 'lactate'})
+        df = df.rename(columns={'bicarbonate_arterial': 'bicarbonate'})
 
     if not ('treated' in df.columns):
         if df.effective_value.unique().tolist() == ['prone', 'supine']:
