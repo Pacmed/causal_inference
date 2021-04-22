@@ -2,12 +2,8 @@
 """
 
 import numpy as np
-import statsmodels.api as sm
-from sklearn.base import BaseEstimator, ClassifierMixin, TransformerMixin
-from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
-from statsmodels.tools.eval_measures import rmse
-from sklearn.utils.multiclass import unique_labels
-from sklearn.metrics import euclidean_distances
+from sklearn.base import BaseEstimator
+from sklearn.utils.validation import check_array, check_is_fitted
 from sklearn.linear_model import LogisticRegression
 
 class PropensityScore(BaseEstimator):
