@@ -273,5 +273,4 @@ class Blocking(BaseEstimator):
 
         X, t = check_X_t(X, t)
 
-        return calculate_rmse(y_true=y, y_pred=self.predict(X=X, t=t))
-
+        return mean_squared_error(y_true=y, y_pred=self.predict(X=X, t=t), squared=False)

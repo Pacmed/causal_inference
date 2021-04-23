@@ -122,7 +122,7 @@ def _plot_and_save(df, figure_name, save_dir, xlabel, show_points:bool=False):
                          "markersize":"5"})
 
     if show_points:
-        sns.stripplot(x="ATE", y="Method", data=df_plot, size=3, color=".35", linewidth=0)
+        sns.stripplot(x="ATE", y="Method", data=df, size=3, color=".35", linewidth=0)
 
     # Tweak the visual presentation
     ax.xaxis.grid(True)
