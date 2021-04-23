@@ -110,7 +110,7 @@ run_training_loop <- function(data) {
                               use_missing_data_dummies_as_covars = FALSE,
                               replace_missing_data_with_x_j_bar = TRUE,
                               num_trees = 50,
-                              mem_cache_for_speed=TRUE,
+                              mem_cache_for_speed=FALSE,
                               alpha = 0.95,
                               beta = 2,
                               k = 2,
@@ -128,6 +128,17 @@ test_training_loop <- function(model, test_data) {
   ate <- s_learner_predict_ate(model, test_data[[1]])[[1]]
 
   return(list(ate, rmse, r2))
+}
+check_raw_diff <- function(data, test_data, n_of_experiments) {
+  raw_diff <- []
+
+  for (i in 1:n_of_experiments){
+
+    model <- run_training_loop(data)
+    results <- test_training_loop(model, test_data)
+    ate_vector <- c(ate_vector, results[[1]])
+    rmse_vector <- c(rmse_vector, results[[2]])
+    r2_vector <- c(r2_vector, results[[3]])
 }
 run_experiment <- function(data, test_data, n_of_experiments) {
   ate_vector <- 0
@@ -170,10 +181,10 @@ save_summary <- function(results, path){
 ### Set Seed and Define Global Variables ###
 ############################################
 
-
-set.seed(12345) # seed
-path <- "/home/adam/adam/data/19012021/" #data folder
-setwd(path)
+SEED <- 12345
+set.seed(SEED) # seed
+path <- '/home/adam/adam/data/causal_inference/data/processed/data_guerin_rct.csv' #data folder
+#setwd(path)
 outcome <- "pf_ratio_2h_8h_manual_outcome"
 n_of_experiments <- 100
 
@@ -182,7 +193,7 @@ n_of_experiments <- 100
 ### Run the Experiment ###
 #########################
 
-df <- load_data('data_guerin_rct_fixed_prone.csv', outcome)
+df <- load_data(path, outcome)
 data <- train_test_split(df, outcome, train_size = 0.8)
 test_data <- prepare_test_data(data)
 results <- run_experiment(data, test_data, n_of_experiments)
@@ -203,7 +214,7 @@ quantile(results[[3]], probs = c(0.025, 0.975))
 ### Save Results ###
 ####################
 
-setwd("/home/adam/adam/data/results_fix/")
+setwd("/home/adam/adam/data/causal_inference/results/pf_ratio_2h_8h_manual_outcome/")
 
 #path_predictions <- sprintf("results_BART_%s.csv", outcome) not yet implemented
 #save_predictions(results, path_predictions)
