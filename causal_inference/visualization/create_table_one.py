@@ -39,18 +39,7 @@ def create_table_one_bool(df):
         df_summary.loc['ndiff', 'male_sex'] = calculate_ndiff_boolean_vectorized(df_summary.loc['freq_prone', 'male_sex'],
                                                                                  df_summary.loc['freq_supine', 'male_sex'])
 
-    objects = df.filter(regex='nice').columns
-    if len(objects) > 0:
-        for object_column in objects:
-            df_summary.loc['freq', object_column] = df[object_column].value_counts(normalize=True,
-                                                                                     sort=False)[1]
-            df_summary.loc['freq_supine', object_column] = df_supine[object_column].value_counts(normalize=True,
-                                                                                     sort=False)[1]
-            df_summary.loc['freq_prone', object_column] = df_prone[object_column].value_counts(normalize=True,
-                                                                                          sort=False)[1]
-            df_summary.loc['ndiff', object_column] = calculate_ndiff_boolean_vectorized(df_summary.loc['freq_prone', object_column],
-                                                                                             df_summary.loc['freq_supine', object_column])
-    booleans = df.filter(regex='med').columns
+    booleans = df.loc[:, (df.dtypes == np.bool)].drop(columns=['treated']).columns
     if len(booleans) > 0:
         for bool_column in booleans:
             df_summary.loc['freq', bool_column] = df[bool_column].value_counts(normalize=True,
@@ -62,16 +51,6 @@ def create_table_one_bool(df):
 
             df_summary.loc['ndiff', bool_column] = calculate_ndiff_boolean_vectorized(df_summary.loc['freq_prone', bool_column],
                                                                                         df_summary.loc['freq_supine', bool_column])
-
-    renal = df.filter(regex='renal').columns
-    if len(booleans) > 0:
-        for bool_column in renal:
-            df_summary.loc['freq', bool_column] = df[bool_column].value_counts(normalize=True,
-                                                                               sort=False)[1]
-            df_summary.loc['freq_supine', bool_column] = df_supine[bool_column].value_counts(normalize=True,
-                                                                                             sort=False)[1]
-            df_summary.loc['freq_prone', bool_column] = df_prone[bool_column].value_counts(normalize=True,
-                                                                                           sort=False)[1]
 
             df_summary.loc['ndiff', bool_column] = calculate_ndiff_boolean_vectorized(
                 df_summary.loc['freq_prone', bool_column],

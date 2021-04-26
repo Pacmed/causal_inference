@@ -247,6 +247,21 @@ def adjust_columns(df):
         df['med_neuromuscular_blockers'] = df['atc_M03']
         df = df.drop(columns=['atc_M03'])
 
+    if ('bicarbonate_unspecified' in df.columns) & ('bicarbonate_arterial' in df.columns):
+        df.loc[df.bicarbonate_arterial.isna(),
+               'bicarbonate_arterial'] = df.loc[df.bicarbonate_arterial.isna(),
+                                                'bicarbonate_unspecified']
+        df = df.drop(columns=['bicarbonate_unspecified'])
+
+    if 'bicarbonate_arterial' in df.columns:
+        df = df.rename(columns={'bicarbonate_arterial': 'bicarbonate'})
+
+    if not ('treated' in df.columns):
+        if df.effective_value.unique().tolist() == ['prone', 'supine']:
+            df['treated'] = False
+            df.loc[df.effective_value == 'prone', 'treated'] = True
+            print("Treatment indicator created!")
+
     return df
 
 def construct_pf_ratio(df):

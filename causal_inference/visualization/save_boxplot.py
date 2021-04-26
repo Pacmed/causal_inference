@@ -10,12 +10,15 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 
+VERTICAL_LINE = 15
+
 
 def save_boxplot(figure_name:str,
                  load_dir:str,
                  save_dir:str=None,
                  xlabel:str=None,
-                 file_name_contain:str=None):
+                 file_name_contain:str=None,
+                 column_results:str='ate_test'):
     """Saves a boxplot of estimated average treatment effects for a suite of experiments.
 
     Each file is expected to contain ATE estimates in the first column with each row being a single iteration
@@ -34,6 +37,8 @@ def save_boxplot(figure_name:str,
         Name of the figure's x-axis.
     file_name_contain : str
         Loads only files containing 'file_name_contain' in the name of the file.
+    column_results : str
+        Name of the column that contains the results to plot.
 
     Returns
     -------
@@ -46,12 +51,12 @@ def save_boxplot(figure_name:str,
     if xlabel is None:
         xlabel = "Estimated Average Treatment Effect"
 
-    df = _load_results_to_plot(load_dir=load_dir, file_name_contain=file_name_contain)
-    _plot_and_save(df, xlabel=xlabel, save_dir=save_dir, figure_name=figure_name)
+    df = _load_results_to_plot(load_dir=load_dir, file_name_contain=file_name_contain, column_results=column_results)
+    _plot_and_save(df, xlabel=xlabel, save_dir=save_dir, figure_name=figure_name, column_results=column_results)
 
     return None
 
-def _load_results_to_plot(load_dir, file_name_contain):
+def _load_results_to_plot(load_dir, file_name_contain, column_results):
     """Function to load results required for making the figure.
 
     Parameters
@@ -60,6 +65,8 @@ def _load_results_to_plot(load_dir, file_name_contain):
         Directory to load results from.
     file_name_contain : str
         Loads only files containing 'file_name_contain' in the name of the file.
+    column_results : str
+        Name of the column that contains the results to plot.
 
     Returns
     -------
@@ -77,11 +84,24 @@ def _load_results_to_plot(load_dir, file_name_contain):
         match_str = f'results_*{file_name_contain}*.csv'
 
     for result in os.listdir(load_dir):
+        # Get result file
         if fnmatch.fnmatch(result, match_str):
             print("Loading:", result)
-            model_name = re.search('_(.+?)_', result).group(1)
-            result_values = pd.read_csv(result, header=None)
-            df[model_name] = result_values.iloc[:, 0].round(2)
+            # Get model name
+            try:
+                model_name = re.search('_(.+?)_', result)
+                model_name = model_name.group(1)
+            except AttributeError:
+                if result.startswith('results_'):
+                    model_name = result[8:]
+                else:
+                    model_name = result
+                if result.endswith('.csv'):
+                    model_name = model_name[:-4]
+
+            # Load selected results with the model name
+            result_values = pd.read_csv(load_dir + result)
+            df[model_name] = result_values.loc[:, column_results].round(2)
 
     # Transform results
     df = df.melt()
@@ -89,7 +109,7 @@ def _load_results_to_plot(load_dir, file_name_contain):
 
     return df
 
-def _plot_and_save(df, figure_name, save_dir, xlabel, show_points:bool=False):
+def _plot_and_save(df, figure_name, save_dir, xlabel, column_results, show_points:bool=False):
     """Shows and saves the generated boxplot.
 
         Parameters
@@ -104,6 +124,8 @@ def _plot_and_save(df, figure_name, save_dir, xlabel, show_points:bool=False):
             Directory to save the figure to. If None then the figure is saved to 'load_dir'.
         xlabel : str
             Name of the figure's x-axis.
+        column_results : str
+            Name of the column that contains the results to plot.
         show_points : bool
             If True, shows points indicating individual ATE estimates.
 
@@ -122,17 +144,18 @@ def _plot_and_save(df, figure_name, save_dir, xlabel, show_points:bool=False):
                          "markersize":"5"})
 
     if show_points:
-        sns.stripplot(x="ATE", y="Method", data=df_plot, size=3, color=".35", linewidth=0)
+        sns.stripplot(x="ATE", y="Method", data=df, size=3, color=".35", linewidth=0)
 
     # Tweak the visual presentation
     ax.xaxis.grid(True)
     ax.set(ylabel="")
     ax.set(xlabel=xlabel)
-    ax.axvline(x=15, ymin=0.02, ymax=0.98, color='dimgrey', linestyle='--')
+    if column_results.startswith('ate_'):
+        print("ate")
+        ax.axvline(x=VERTICAL_LINE, ymin=0.02, ymax=0.98, color='dimgrey', linestyle='--')
     sns.despine(trim=True, left=True)
     plt.show()
-    with os.chdir(save_dir):
-        plt.savefig(f"{figure_name}.png")
+    plt.savefig(save_dir + f"{figure_name}.png")
 
     return None
 
