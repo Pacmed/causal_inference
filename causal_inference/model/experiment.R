@@ -10,13 +10,13 @@
 SEED <- 1234
 ENV_NAME <- 'bart'
 N_OF_ITERATIONS <- 100
-PATH_TRAIN_DATA <- '/home/adam/adam/data/causal_inference/data/processed/guerin_2_8_train.npz'
-PATH_TEST_DATA <- '/home/adam/adam/data/causal_inference/data/processed/guerin_2_8_test.npz'
-PATH_RESULTS <- ''
+PATH_TRAIN_DATA <- '/home/adam/adam/data/causal_inference/data/processed/guerin_12_24_train.npz'
+PATH_TEST_DATA <- '/home/adam/adam/data/causal_inference/data/processed/guerin_12_24_test.npz'
+PATH_SAVE_RESULTS <- '/home/adam/adam/data/causal_inference/results/old/12h_24h/results_BART.csv'
 PATH_SUMMARY <- ''
 
-OLD_TRAIN <- '/home/adam/adam/cfrnet/data/bfpguerin_2_8.train.npz'
-OLD_TEST <- '/home/adam/adam/cfrnet/data/bfpguerin_2_8.test.npz'
+OLD_TRAIN <- '/home/adam/adam/cfrnet/data/bfpguerin_12_24.train.npz'
+OLD_TEST <- '/home/adam/adam/cfrnet/data/bfpguerin_12_24.test.npz'
 ###########################
 ### Set Hyperparameters ###
 ###########################
@@ -47,19 +47,6 @@ library("reticulate")
 #########################
 ### Define Functions  ###
 #########################
-
-load_data <- function (path, np) {
-  #' Loads bootsrapped data for the purpose of the experiment.
-  #'
-  #' @param path Path to load the data
-  #'
-  #' @return Returns a list list(y, t, X) of training/test data.
-
-  # Load the data
-  data <- np$load(path)
-
-  return(list(y=data$f[["yf"]], t=data$f[["t"]], X=data$f[["x"]]))
-}
 
 train <- function (y, t, X) {
   #' Train a BART model.
@@ -114,7 +101,7 @@ evaluate <- function(model, y, t, X) {
   return(list(rmse=rmse, r2=r2, ate=ate))
 }
 
-run_experiment <- function(path_train_data, path_test_data, n_of_iterations, env_name) {
+run_experiment <- function(path_train_data, path_test_data, n_of_iterations, env_name, path_save_results) {
   #' Runs the experiment
   #'
   #' @param train_data
@@ -129,6 +116,8 @@ run_experiment <- function(path_train_data, path_test_data, n_of_iterations, env
   results <- 0
 
   for (iteration in 1:n_of_iterations) {
+
+    print(iteration)
 
     train_data <- load_data(path_train_data, np)
 
@@ -155,36 +144,32 @@ run_experiment <- function(path_train_data, path_test_data, n_of_iterations, env
                    r2_test = result_test$r2,
                    ate_test = result_test$ate)
 
-  if ('numeric' %in% class(0)) {results <- result} else {results <- rbind(results, result)}
+    if ('numeric' %in% class(results)) {results <- result} else {results <- rbind(results, result)}
+
   }
+
+  rownames(results) <- NULL
+  write.csv(results, path_save_results)
+
   return(results)
-}
-
-save_results <- function(results, path) {
-  ate <- results[[1]]
-  rmse <- results[[2]]
-  r2 <- results[[3]]
-  df_results <- data.frame(ate, rmse, r2)
-  write.csv(df_results, path, row.names = TRUE)
-}
-save_summary <- function(results, path){
-  ate <- c(mean(results[[1]]),
-           quantile(results[[1]], probs = c(0.025, 0.975))[[1]],
-           quantile(results[[1]], probs = c(0.025, 0.975))[[2]])
-  rmse <- c(mean(results[[2]]),
-            quantile(results[[2]], probs = c(0.025, 0.975))[[1]],
-            quantile(results[[2]], probs = c(0.025, 0.975))[[2]])
-  r2 <- c(mean(results[[3]]),
-          quantile(results[[3]], probs = c(0.025, 0.975))[[1]],
-          quantile(results[[3]], probs = c(0.025, 0.975))[[2]])
-
-  df_summary <- t(data.frame(ate, rmse, r2, row.names = c("mean", "0.025_percentile", "0.975_percentile")))
-  write.csv(df_summary, path, row.names = TRUE)
 }
 
 ###########################
 ### Auxiliary Functions ###
 ###########################
+
+load_data <- function (path, np) {
+  #' Loads bootsrapped data for the purpose of the experiment.
+  #'
+  #' @param path Path to load the data
+  #'
+  #' @return Returns a list list(y, t, X) of training/test data.
+
+  # Load the data
+  data <- np$load(path)
+
+  return(list(y=data$f[["yf"]], t=data$f[["t"]], X=data$f[["x"]]))
+}
 
 load_enviroment <- function (env_name) {
   myenvs <- conda_list()
@@ -224,36 +209,4 @@ s_learner_ate <- function (model, X) {
 ### Run the Experiment ###
 ##########################
 
-run_experiment(OLD_TRAIN, OLD_TEST, N_OF_ITERATIONS, ENV_NAME)
-
-#########################
-### Print the Results ###
-#########################
-
-print(mean(results[[1]])) # mean ATE
-print(mean(results[[2]])) # mean RMSE
-print(mean(results[[3]])) # mean R2
-
-quantile(results[[1]], probs = c(0.025, 0.975))
-quantile(results[[2]], probs = c(0.025, 0.975))
-quantile(results[[3]], probs = c(0.025, 0.975))
-
-####################
-### Save Results ###
-####################
-
-setwd("/home/adam/adam/data/causal_inference/results/pf_ratio_2h_8h_manual_outcome/")
-
-#path_predictions <- sprintf("results_BART_%s.csv", outcome) not yet implemented
-#save_predictions(results, path_predictions)
-
-path_results <- "results_BART_pf_ratio_2h_8h_manual_outcome.csv"
-save_results(results, path_results)
-
-path_summary <- "summary_BART_pf_ratio_2h_8h_manual_outcome.csv"
-save_summary(results, path_summary)
-
-# training with obesity
-# should add training data results
-# should incorporate loading of two separate files training and test .csv
-# I am not dropping any as.data.frame.matrix(cbind(rep(True, nrow(X), X)))features
+results <- run_experiment(OLD_TRAIN, OLD_TEST, N_OF_ITERATIONS, ENV_NAME, PATH_SAVE_RESULTS)

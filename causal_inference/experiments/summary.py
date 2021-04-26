@@ -48,7 +48,7 @@ def summary(df_results: pd.DataFrame,
     return df_summary
 
 
-def convert_results_r():
+def convert_results_r(load_path, save_path):
     pass
 
 def convert_results_cfr():
