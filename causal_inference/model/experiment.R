@@ -1,160 +1,165 @@
-# Title     : Experiment
-# Objective : Run Repeated Experiments with BART
+# Title     : BART
+# Objective : Run the experiment with BART on bootsrapped data.
 # Created by: adam
 # Created on: 2/23/21
 
+########################
+### Define Constants ###
+########################
 
-####################################
-### Load Packages and Functions  ###
-####################################
+SEED <- 1234
+ENV_NAME <- 'bart'
+N_OF_ITERATIONS <- 100
+PATH_TRAIN_DATA <- '/home/adam/adam/data/causal_inference/data/processed/guerin_2_8_train.npz'
+PATH_TEST_DATA <- '/home/adam/adam/data/causal_inference/data/processed/guerin_2_8_test.npz'
+PATH_RESULTS <- ''
+PATH_SUMMARY <- ''
+
+OLD_TRAIN <- '/home/adam/adam/cfrnet/data/bfpguerin_2_8.train.npz'
+OLD_TEST <- '/home/adam/adam/cfrnet/data/bfpguerin_2_8.test.npz'
+###########################
+### Set Hyperparameters ###
+###########################
+
+N_OF_TREES <- 50
+ALPHA <- 0.95
+BETA <- 2
+K <- 2
+Q <- 0.9
+NU <- 3
+
+###################
+### Set Options ###
+###################
 
 options(java.parameters = "-Xmx50g")
+set.seed(SEED)
+
+#########################
+### Import Libraries  ###
+#########################
 
 library("bartMachine")
 set_bart_machine_num_cores(16)
 library("tidyr")
+library("reticulate")
 
-load_data <- function(file, outcome) {
-  df <- read.csv(file)
-  df <- df %>% drop_na(outcome)
-  outcomes = c("pf_ratio_2h_8h_outcome",
-               "pf_ratio_2h_8h_manual_outcome",
-               "pf_ratio_12h_24h_outcome",
-               "pf_ratio_12h_24h_manual_outcome")
-  df <- df[, -which(names(df) %in% setdiff(outcomes, outcome))]
-  return(df)
+#########################
+### Define Functions  ###
+#########################
+
+load_data <- function (path, np) {
+  #' Loads bootsrapped data for the purpose of the experiment.
+  #'
+  #' @param path Path to load the data
+  #'
+  #' @return Returns a list list(y, t, X) of training/test data.
+
+  # Load the data
+  data <- np$load(path)
+
+  return(list(y=data$f[["yf"]], t=data$f[["t"]], X=data$f[["x"]]))
 }
-train_test_split <- function(df, outcome, train_size = 0.8) {
-  df_treated <- df[df[, "treated"] == "True", -which(names(df) %in% "treated")]
-  df_control <- df[df[, "treated"] == "False", -which(names(df) %in% "treated")]
 
-  sample_treated <- sample.int(n = nrow(df_treated), size = floor(train_size*nrow(df_treated)), replace = F)
-  sample_control <- sample.int(n = nrow(df_control), size = floor(train_size*nrow(df_control)), replace = F)
+train <- function (y, t, X) {
+  #' Train a BART model.
+  #'
+  #' @param y training labels
+  #' @param t training treatment indicator
+  #' @param X training covariates matrix
+  #'
+  #' @return BART model trained on input data
 
-  X_train_treated <- df_treated[sample_treated, -which(names(df_treated) %in% outcome)]
-  X_train_control <- df_control[sample_control, -which(names(df_control) %in% outcome)]
-  y_train_treated <- df_treated[sample_treated, outcome]
-  y_train_control <- df_control[sample_control, outcome]
+  X <- as.data.frame.matrix(cbind(t, X))
+  colnames <- colnames(X)
 
-  X_test_treated <- df_treated[-sample_treated, -which(names(df_treated) %in% outcome)]
-  X_test_control <- df_control[-sample_control, -which(names(df_control) %in% outcome)]
-  y_test_treated <- df_treated[-sample_treated, outcome]
-  y_test_control <- df_control[-sample_control, outcome]
-
-  return(list(X_train_treated,
-              X_train_control,
-              X_test_treated,
-              X_test_control,
-              y_train_treated,
-              y_train_control,
-              y_test_treated,
-              y_test_control))
-}
-s_learner_predict_ate <- function(model, data) {
-  # Predict outcomes, if everybody in the test set would have been treated
-  data$treated <- TRUE
-  m_1 <- predict(model, data)
-  # Predict outcomes, if everybody in the control set would have been control
-  data$treated <- FALSE
-  m_0 <- predict(model, data)
-  # Calculate the mean difference
-  cate <- mean(m_1) - mean(m_0)
-  # Take confidence intervals
-  ci_low <- cate - 1.96 * sqrt(var(m_1)/length(m_1) + var(m_0)/length(m_0))
-  ci_high <- cate + 1.96 * sqrt(var(m_1)/length(m_1) + var(m_0)/length(m_0))
-  return(list(cate, ci_low, ci_high))
-}
-prepare_test_data <- function(data) {
-  X_test_treated <- data[[3]]
-  X_test_control <- data[[4]]
-  y_test_treated <- data[[7]]
-  y_test_control <- data[[8]]
-
-  X_test_treated$treated <- TRUE
-  X_test_control$treated <- FALSE
-
-  X_test <- rbind(X_test_treated, X_test_control)
-  y_test <- c(y_test_treated, y_test_control)
-
-  return(list(X_test, y_test))
-}
-run_training_loop <- function(data) {
-  X_train_treated <- data[[1]]
-  X_train_control <- data[[2]]
-  y_train_treated <- data[[5]]
-  y_train_control <- data[[6]]
-
-  # Bootstrap
-  sample_treated <- sample.int(n = nrow(X_train_treated), size = floor(0.95*nrow(X_train_treated)), replace = T)
-  X_train_treated <- X_train_treated[sample_treated, ]
-  y_train_treated <- y_train_treated[sample_treated]
-
-  sample_control <- sample.int(n = nrow(X_train_control), size = floor(0.95*nrow(X_train_control)), replace = T)
-  X_train_control <- X_train_control[sample_control, ]
-  y_train_control <- y_train_control[sample_control]
-
-  X_train_treated$treated <- TRUE
-  X_train_control$treated <- FALSE
-
-  X_train <- rbind(X_train_treated, X_train_control)
-  y_train <- c(y_train_treated, y_train_control)
-
-  # shuffle
-  shuffle <- sample(nrow(X_train))
-  X_train <- X_train[shuffle, ]
-  y_train <- y_train[shuffle]
-
-  bart_machine <- bartMachine(X_train,
-                              y_train,
+  bart_machine <- bartMachine(X,
+                              y,
                               use_missing_data = TRUE,
                               use_missing_data_dummies_as_covars = FALSE,
                               replace_missing_data_with_x_j_bar = TRUE,
-                              num_trees = 50,
+                              num_trees = N_OF_TREES,
                               mem_cache_for_speed=FALSE,
-                              alpha = 0.95,
-                              beta = 2,
-                              k = 2,
-                              q = 0.9,
-                              nu = 3,
+                              alpha = ALPHA,
+                              beta = BETA,
+                              k = K,
+                              q = Q,
+                              nu = NU,
                               num_burn_in = 500,
-                              num_iterations_after_burn_in = 1000)
+                              num_iterations_after_burn_in = 1000,
+                              run_in_sample = FALSE)
 
-  return(bart_machine)
+  return(list(model=bart_machine, colnames=colnames))
 }
-test_training_loop <- function(model, test_data) {
-  oos_perf = bart_predict_for_test_data(model, test_data[[1]], test_data[[2]])
+
+evaluate <- function(model, y, t, X) {
+  #' Evaluate a BART model.
+  #'
+  #' @param y training/test labels
+  #' @param t training/test treatment indicator
+  #' @param X training/test covariates matrix
+  #'
+  #' @return A list of list(rmse, r2, ate) model's evaluation.
+
+  X <- as.data.frame.matrix(cbind(t, X))
+  colnames(X) <- model$colnames
+
+  oos_perf <- bart_predict_for_test_data(bart_machine = model$model,
+                                         Xtest = X,
+                                         ytest = y)
   rmse <- oos_perf$rmse
-  r2 <- 1 - ((oos_perf$L2) / sum((test_data[[2]] - mean(test_data[[2]]))^2))
-  ate <- s_learner_predict_ate(model, test_data[[1]])[[1]]
+  r2 <- 1 - ((oos_perf$L2) / sum((y - mean(y))^2))
+  ate <- s_learner_ate(model, X)
 
-  return(list(ate, rmse, r2))
+  return(list(rmse=rmse, r2=r2, ate=ate))
 }
-check_raw_diff <- function(data, test_data, n_of_experiments) {
-  raw_diff <- []
 
-  for (i in 1:n_of_experiments){
+run_experiment <- function(path_train_data, path_test_data, n_of_iterations, env_name) {
+  #' Runs the experiment
+  #'
+  #' @param train_data
+  #' @param test_data
+  #' @param n_of_iterations
+  #'
+  #' @return
 
-    model <- run_training_loop(data)
-    results <- test_training_loop(model, test_data)
-    ate_vector <- c(ate_vector, results[[1]])
-    rmse_vector <- c(rmse_vector, results[[2]])
-    r2_vector <- c(r2_vector, results[[3]])
-}
-run_experiment <- function(data, test_data, n_of_experiments) {
-  ate_vector <- 0
-  rmse_vector <- 0
-  r2_vector <- 0
+  np <- load_enviroment(env_name)
 
-  for (i in 1:n_of_experiments){
-    print(i)
-    model <- run_training_loop(data)
-    results <- test_training_loop(model, test_data)
-    ate_vector <- c(ate_vector, results[[1]])
-    rmse_vector <- c(rmse_vector, results[[2]])
-    r2_vector <- c(r2_vector, results[[3]])
+  # Initialize result vectors
+  results <- 0
+
+  for (iteration in 1:n_of_iterations) {
+
+    train_data <- load_data(path_train_data, np)
+
+    model <- train(y = train_data$y[ ,iteration],
+                   t = train_data$t[ ,iteration],
+                   X = train_data$X[ , ,iteration])
+
+    result_train <- evaluate(model,
+                             y = train_data$y[ ,iteration],
+                             t = train_data$t[ ,iteration],
+                             X = train_data$X[ , ,iteration])
+
+    test_data <- load_data(path_test_data, np)
+
+    result_test <- evaluate(model,
+                            y = test_data$y[ ,iteration],
+                            t = test_data$t[ ,iteration],
+                            X = test_data$X[ , ,iteration])
+
+    result <- list(rmse_train = result_train$rmse,
+                   r2_train = result_train$r2,
+                   ate_train = result_train$ate,
+                   rmse_test = result_test$rmse,
+                   r2_test = result_test$r2,
+                   ate_test = result_test$ate)
+
+  if ('numeric' %in% class(0)) {results <- result} else {results <- rbind(results, result)}
   }
-  return(list(ate_vector[-1], rmse_vector[-1], r2_vector[-1]))
+  return(results)
 }
+
 save_results <- function(results, path) {
   ate <- results[[1]]
   rmse <- results[[2]]
@@ -177,26 +182,49 @@ save_summary <- function(results, path){
   write.csv(df_summary, path, row.names = TRUE)
 }
 
-############################################
-### Set Seed and Define Global Variables ###
-############################################
+###########################
+### Auxiliary Functions ###
+###########################
 
-SEED <- 12345
-set.seed(SEED) # seed
-path <- '/home/adam/adam/data/causal_inference/data/processed/data_guerin_rct.csv' #data folder
-#setwd(path)
-outcome <- "pf_ratio_2h_8h_manual_outcome"
-n_of_experiments <- 100
+load_enviroment <- function (env_name) {
+  myenvs <- conda_list()
+  envname <- myenvs[myenvs$name == env_name, 'name']
+  use_condaenv(envname, required = TRUE)
+  np <- import("numpy")
+  return(np)
+}
 
+s_learner_ate <- function (model, X) {
+  #' Calculate ATE with an S-learner.
+  #'
+  #' @param model model to be used as an S-learner
+  #' @param X covariates matrix (without the treatment indicator!)
+  #'
+  #' @return ATE
 
-#########################
+  # Load data as a data frame
+  #X <- as.data.frame.matrix(cbind(integer(length = nrow(X)), X))
+  #colnames(X) <- model$colnames
+
+  # Obtain treated prediction
+  X[ ,"t"] <- 1
+  m_1 <- predict(model$model, X)
+
+  # Obtain control prediction
+  X[ ,"t"] <- 0
+  m_0 <- predict(model$model, X)
+
+  # Obtain an ATE estimate
+  ate <- mean(m_1 - m_0)
+
+  return(ate)
+}
+
+##########################
 ### Run the Experiment ###
-#########################
+##########################
 
-df <- load_data(path, outcome)
-data <- train_test_split(df, outcome, train_size = 0.8)
-test_data <- prepare_test_data(data)
-results <- run_experiment(data, test_data, n_of_experiments)
+run_experiment(OLD_TRAIN, OLD_TEST, N_OF_ITERATIONS, ENV_NAME)
 
 #########################
 ### Print the Results ###
@@ -228,4 +256,4 @@ save_summary(results, path_summary)
 # training with obesity
 # should add training data results
 # should incorporate loading of two separate files training and test .csv
-# I am not dropping any features
+# I am not dropping any as.data.frame.matrix(cbind(rep(True, nrow(X), X)))features

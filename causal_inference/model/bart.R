@@ -1,12 +1,36 @@
-# Title     : bart
-# Objective : run bart on proning data
+# Title     : BART experiment
+# Objective : Run BART experiment on  bootstrapped data
 # Created by: adam
 # Created on: 1/13/21
-options(java.parameters = "-Xmx5g")
 
-library("bartCause")
+### Load Libraries ###
+
+options(java.parameters = "-Xmx5g")
 library("bartMachine")
 library("tidyr")
+library("reticulate")
+
+### LOAD CONSTs ###
+
+ENV_NAME = 'bart'
+SEED = 1234
+
+
+### LOAD NUMPY ###
+myenvs=conda_list()
+envname= myenvs[myenvs$name == ENV_NAME, 'name']
+use_condaenv(envname, required = TRUE)
+
+
+### LOAD FILES ###
+
+np <- import("numpy")
+npz1 <- np$load('/home/adam/adam/data/causal_inference/data/processed/guerin_2_8_train.npz')
+npz1$files
+npz1$f[["yf"]]
+npz1$f[["t"]]
+npz1$f[["x"]]
+
 
 load_data <- function(file, outcome) {
   df <- read.csv(file)
