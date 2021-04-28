@@ -67,11 +67,6 @@ def add_patient_data(dl:DataLoader, df:pd.DataFrame):
     df_comorbidities = df_comorbidities[COLS_COMORBIDITIES]
     df = pd.merge(df, df_comorbidities, how='left', on='hash_patient_id')
 
-    # Adjust dtypes
-    for col in (set(COLS_COMORBIDITIES) - set(['hash_patient_id'])):
-        df.loc[df[col].isna(), col] = COMORBIDITY_IF_NAN
-        df.loc[:, col] = df.loc[:, col].astype(bool)
-
     # Add is_second_wave_patient
     df_admission = dl.get_admissions()
     df_admission = df_admission.groupby('hash_patient_id').agg(
