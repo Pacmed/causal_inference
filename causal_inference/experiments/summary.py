@@ -57,9 +57,9 @@ def convert_results_cfr(load_path:str, save_path:str):
     Parameters
     ----------
     load_path : str
-        A path to the results of the CfR package.
+        A path to the results of the CfR package stored in the 'evaluation.npz' file.
     save_path : str
-        A path to the results consistent with the experiments.
+        A path to the results consistent with the experiments generated with the causal_inference package.
 
     Returns
     -------
@@ -71,7 +71,7 @@ def convert_results_cfr(load_path:str, save_path:str):
     results = np.load(load_path, encoding='bytes', allow_pickle=True)[0]
 
     # Load number of iterations for which the model was run
-    n_of_iterations = results['valid']['pehe_nn'].shape[1]
+    n_of_iterations = results[b'valid'][b'pehe_nn'].shape[1]
 
     # Initialize results
     early_stop = []
@@ -79,18 +79,18 @@ def convert_results_cfr(load_path:str, save_path:str):
 
     for iteration in range(n_of_iterations):
         # Load the early stopping criterion
-        stop = np.argmin(results['valid']['pehe_nn'][0, iteration, :], axis=0)
+        stop = np.argmin(results[b'valid'][b'pehe_nn'][0, iteration, :], axis=0)
         early_stop.append(stop)
 
         # Load corresponding results
-        rmse_train.append(results['train']['rmse_fact'][0, iteration, stop])
-        rmse_test.append(results['test']['rmse_fact'][0, iteration, stop])
+        rmse_train.append(results[b'train'][b'rmse_fact'][0, iteration, stop])
+        rmse_test.append(results[b'test'][b'rmse_fact'][0, iteration, stop])
 
-        r2_train.append(results['train']['pehe'][0, iteration, stop])  # The source code of CfR was modified to store
-        r2_test.append(results['test']['pehe'][0, iteration, stop])    # the R^2 coefficient in the 'pehe' column.
+        r2_train.append(results[b'train'][b'pehe'][0, iteration, stop])  # The source code of CfR was modified to store
+        r2_test.append(results[b'test'][b'pehe'][0, iteration, stop])    # the R^2 coefficient in the 'pehe' column.
 
-        ate_train.append(results['train']['ate_pred'][0, iteration, stop])
-        ate_test.append(results['test']['ate_pred'][0, iteration, stop])
+        ate_train.append(results[b'train'][b'ate_pred'][0, iteration, stop])
+        ate_test.append(results[b'test'][b'ate_pred'][0, iteration, stop])
 
 
     # Save results
