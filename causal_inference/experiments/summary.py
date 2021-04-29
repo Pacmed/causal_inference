@@ -4,9 +4,7 @@
 import numpy as np
 import pandas as pd
 
-def summary(df_results: pd.DataFrame,
-            imported_from_r: bool=False,
-            imported_from_cfr: bool=False):
+def summary(df_results: pd.DataFrame):
     """
     Generates a pd.DataFrame with a summary of the experiment's results.
 
@@ -14,23 +12,12 @@ def summary(df_results: pd.DataFrame,
     ----------
     df_results : pd.DataFrame
         Results of an experiment. Results include metrics and treatment effects for each bootstrap sample.
-    imported_from_r : bool
-        If True, results of an experiment will be converted from R.
-    imported_from_cfr : bool
-        If True, results of an experiment will be converted from Python 2.
 
     Returns
     -------
     df_summary : pd.DataFrame
         Returns a summary of the experiment's results.
     """
-
-    # Convert results
-    if imported_from_r:
-        df_results = convert_results_r(df_results)
-
-    if imported_from_cfr:
-        df_results = convert_results_cfr(df_results)
 
     # Initialize the summary
     df_summary = pd.DataFrame(data=[])
@@ -48,8 +35,32 @@ def summary(df_results: pd.DataFrame,
     return df_summary
 
 
-def convert_results_r():
-    pass
+def generate_summary(load_path, save_path):
+    """Generates summary from results.
+
+    Parameters
+    ----------
+    load_path : str
+        A path to load the results from. Each row should indicate a single iteration of the experiment and each column
+        an accuracy/treatment effect metric.
+    save_path : str
+        A path to save the summary. Each row indicates an accuracy/treatment effect metric, the columns indicate the
+        mean, 2.5-th and 97.5-th percentile respectively.
+
+    Returns
+    -------
+    z : None
+    """
+
+    # Load results
+    df_results = pd.read_csv(load_path, index_col=0)
+
+    # Generate a summary for each metric
+    df_summary = summary(df_results)
+
+    df_summary.to_csv(save_path, float_format='%1.2f', header=True, index=True)
+
+    return None
 
 def convert_results_cfr():
     pass
