@@ -44,18 +44,17 @@ def prepare_csv_data(df:pd.DataFrame,
     # Delete rows with missing outcome values
     df.dropna(subset=[outcome_name], inplace=True)
 
-    # Impute NaN values of comorbidities with COMORBIDITY_IF_NAN. Note that we first impute missing values for
-    # comorbidities and only after drop the columns with a fraction of missing values exceeding the threshold.
-    for col in (set(COLS_COMORBIDITIES) - set(['hash_patient_id'])):
-        df.loc[df[col].isna(), col] = COMORBIDITY_IF_NAN
-        df.loc[:, col] = df.loc[:, col].astype(bool)
-
     # Drop columns with a fraction of missing values exceeding the threshold
     thresh = round(threshold * len(df.index))
     columns_to_drop = df.columns.to_list()
     df = df.dropna(thresh=thresh, axis=1)
     columns_to_drop = list(set(columns_to_drop) - set(df.columns.to_list()))
     print(f'Columns exceeding the threshold of missing values: {columns_to_drop} deleted.')
+
+    # Impute missing comorbidities
+    for col in ((set(df.columns.to_list()) & set(COLS_COMORBIDITIES)) - set(['hash_patient_id'])):
+        df.loc[df[col].isna(), col] = COMORBIDITY_IF_NAN
+        df.loc[:, col] = df.loc[:, col].astype(bool)
 
     # Convert categorical variable into dummy/indicator variables.
     columns_not_to_drop = df.filter(regex='False').columns.to_list()
