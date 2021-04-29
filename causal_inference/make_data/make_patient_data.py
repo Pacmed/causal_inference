@@ -48,11 +48,18 @@ def add_patient_data(dl:DataLoader, df:pd.DataFrame):
         Data of supine and prone sessions with patients data added.
     """
 
+    # Drop already existing columns in order to avoid duplicate columns
+    columns_to_drop = list((set(COLS_PATIENTS) - set(['hash_patient_id'])) & set(df.columns.to_list()))
+    if columns_to_drop: df = df.drop(columns=columns_to_drop)
+    if 'has_died_during_session' in df.columns: df = df.drop(columns=['has_died_during_session'])
+    columns_to_drop = list((set(COLS_COMORBIDITIES) - set(['hash_patient_id'])) & set(df.columns.to_list()))
+    if columns_to_drop: df = df.drop(columns=columns_to_drop)
+    if 'second_wave_patient' in df.columns: df = df.drop(columns=['second_wave_patient'])
+
     # Add bmi, age, gender
     df_patients = dl.get_patients()
     df_patients = df_patients[COLS_PATIENTS]
     df = pd.merge(df, df_patients, how='left', on='hash_patient_id')
-    #
 
     # Add has_died_during_session
     if ('start_timestamp' in df.columns) & ('end_timestamp' in df.columns) & ('death_timestamp' in df.columns):
@@ -66,11 +73,6 @@ def add_patient_data(dl:DataLoader, df:pd.DataFrame):
     df_comorbidities = dl.get_comorbidities()
     df_comorbidities = df_comorbidities[COLS_COMORBIDITIES]
     df = pd.merge(df, df_comorbidities, how='left', on='hash_patient_id')
-
-    # Adjust dtypes
-    for col in (set(COLS_COMORBIDITIES) - set(['hash_patient_id'])):
-        df.loc[df[col].isna(), col] = COMORBIDITY_IF_NAN
-        df.loc[:, col] = df.loc[:, col].astype(bool)
 
     # Add is_second_wave_patient
     df_admission = dl.get_admissions()
