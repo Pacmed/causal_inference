@@ -39,7 +39,7 @@ def create_table_one_bool(df):
         df_summary.loc['ndiff', 'male_sex'] = calculate_ndiff_boolean_vectorized(df_summary.loc['freq_prone', 'male_sex'],
                                                                                  df_summary.loc['freq_supine', 'male_sex'])
 
-    booleans = df.loc[:, (df.dtypes == np.bool)].drop(columns=['treated']).columns
+    booleans = df.loc[:, (df.dtypes == np.bool) | (df.dtypes == np.object)].drop(columns=['treated']).columns
     if len(booleans) > 0:
         for bool_column in booleans:
             df_summary.loc['freq', bool_column] = df[bool_column].value_counts(normalize=True,

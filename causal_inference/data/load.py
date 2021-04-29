@@ -9,13 +9,15 @@ import numpy as np
 
 from typing import Optional
 
+from causal_inference.make_data.make_patient_data import COLS_COMORBIDITIES, COMORBIDITY_IF_NAN
 
 def prepare_csv_data(df:pd.DataFrame,
                      outcome_name:str,
                      threshold:Optional[float]=1):
     """Transforms raw data into data ready to be converted into np.ndarrays.
 
-    Transforms the data by removing redundant outcomes, and by dtypes conversion.
+    Transforms the data by removing redundant outcomes, and by dtypes conversion. Imputes missing values for
+    comorbidities.
 
     Parameters
     ----------
@@ -48,6 +50,11 @@ def prepare_csv_data(df:pd.DataFrame,
     df = df.dropna(thresh=thresh, axis=1)
     columns_to_drop = list(set(columns_to_drop) - set(df.columns.to_list()))
     print(f'Columns exceeding the threshold of missing values: {columns_to_drop} deleted.')
+
+    # Impute missing comorbidities
+    for col in ((set(df.columns.to_list()) & set(COLS_COMORBIDITIES)) - set(['hash_patient_id'])):
+        df.loc[df[col].isna(), col] = COMORBIDITY_IF_NAN
+        df.loc[:, col] = df.loc[:, col].astype(bool)
 
     # Convert categorical variable into dummy/indicator variables.
     columns_not_to_drop = df.filter(regex='False').columns.to_list()

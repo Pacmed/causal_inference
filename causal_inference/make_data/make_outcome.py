@@ -12,6 +12,8 @@ from data_warehouse_utils.dataloader import DataLoader
 EARLY_PRONING_EFFECT = [2, 8]
 LATE_PRONING_EFFECT = [12, 24]
 
+FIO_2_MIN = 21 # Logical minimum for FiO_2 values used for outcome construction
+
 
 def make_outcomes(dl: DataLoader, df: pd.DataFrame, df_measurements: Optional[pd.DataFrame] = None):
     """This function loads outcome values for each row of the input data.
@@ -177,6 +179,7 @@ def __calculate_pf_ratio_manually(df_measurements):
     po2 = po2['numerical_value']
     fio2 = df_measurements[df_measurements.pacmed_name == 'fio2']
     fio2 = fio2['numerical_value']
+    fio2 = fio2[fio2 >= FIO_2_MIN]  # Filter fio2 values lower than the logical minimum 21%
 
     if (len(po2) > 0) & (len(fio2) > 0):
         # Note that extracting the outcome as taking the last value of both po2 and fio2 is different from
