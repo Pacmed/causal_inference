@@ -137,28 +137,26 @@ def _plot_and_save(df, figure_name, save_dir, xlabel, column_results, show_point
         z : None
         """
     f, ax = plt.subplots(figsize=(7, 6))
-
-    sns.boxplot(x=column_results, y="Method", data=df, orient='h',
+    f = sns.boxplot(x=column_results, y="Method", data=df, orient='h',
               whis=[2.5, 97.5], width=.6, palette="vlag",
               color=".2", showmeans=True,
               meanprops={"marker":"s",
                          "markerfacecolor":"dimgrey",
                          "markeredgecolor":"dimgrey",
                          "markersize":"5"})
-
     if show_points:
         sns.stripplot(x="ATE", y="Method", data=df, size=3, color=".35", linewidth=0)
-
     # Tweak the visual presentation
     ax.xaxis.grid(True)
     ax.set(ylabel="")
     ax.set(xlabel=xlabel)
     if column_results.startswith('ate_'):
-        print("ate")
         ax.axvline(x=VERTICAL_LINE, ymin=0.02, ymax=0.98, color='dimgrey', linestyle='--')
     sns.despine(trim=True, left=True)
+    figure = f.get_figure()
+    figure.savefig(save_dir + f"{figure_name}.png", dpi=400)
+
     plt.show()
-    plt.savefig(save_dir + f"{figure_name}.png")
 
     return None
 
