@@ -105,7 +105,10 @@ def _load_results_to_plot(load_dir, file_name_contain, column_results):
 
     # Transform results
     df = df.melt()
-    df.columns = ['Method', 'ATE']
+    df.columns = ['Method', column_results]
+
+    # Cut outliers for RMSE to ensure good scale
+    if column_results.startswith('rmse_'): df = df[df[column_results] < 99]
 
     return df
 
@@ -135,7 +138,7 @@ def _plot_and_save(df, figure_name, save_dir, xlabel, column_results, show_point
         """
     f, ax = plt.subplots(figsize=(7, 6))
 
-    sns.boxplot(x="ATE", y="Method", data=df, orient='h',
+    sns.boxplot(x=column_results, y="Method", data=df, orient='h',
               whis=[2.5, 97.5], width=.6, palette="vlag",
               color=".2", showmeans=True,
               meanprops={"marker":"s",
