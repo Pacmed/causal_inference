@@ -1,0 +1,13 @@
+name: causal_inference
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.7
+  - scikit-learn
+  - statsmodels
+  - pandas
+  - numpy
+  - seaborn
+  - notebook
+
