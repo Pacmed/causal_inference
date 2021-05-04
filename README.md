@@ -22,6 +22,7 @@ conda env create -f environment_R.yml
 >📋  To set up the environment for BART model create a separate conda environment.
 
 For using the CfR and TARNET models, use the [official implementation](https://github.com/clinicalml/cfrnet) with the configuration specified for the [CfR](https://github.com/Pacmed/causal_inference/blob/master/causal_inference/model/guerin_cfr_2_8.txt) and [TARNET](https://github.com/Pacmed/causal_inference/blob/master/causal_inference/model/guerin_tarnet_2_8.txt) models.
+>📋  To set up the environment for CfR and TARNET models create a separate conda environment using `environment_cfrnet.yml`.
 
 ## Experiments 
 For replicating the experiments for Outcome Regression, IPW and Blocking models run:
@@ -55,11 +56,17 @@ Rscript BART.R
 
 For replicating the CfR and TARNET experiments install the [official implementation](https://github.com/clinicalml/cfrnet) and run:
 ```CFRNET
-bash guerin_tarnet_2_8.sh ; bash guerin_tarnet_12_24.sh ; bash guerin_cfr_2_8.sh ; bash guerin_cfr_12_24.sh
+mkdir results
+mkdir results/<config_file_name>
 
+python cfr_param_search.py ../causal_inference/model/<config_file> 20
+
+python evaluate.py ../causal_inference/model/<config_file> 1
 ```
 
+Note that:
 >❗ To run the experiments you need to request access to [data](https://icudata.nl/index-en.html). For a detailed description see below. 
+
 > ✨ To compare any scikit-learn models, simply add them to `batch_of_models':
 ```SCIKIT
 batch_of_models = [OLS(), IPW(), Blocking(), RandomForestRegressor()]
