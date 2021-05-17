@@ -10,13 +10,10 @@
 SEED <- 1234
 ENV_NAME <- 'bart'
 N_OF_ITERATIONS <- 100
-PATH_TRAIN_DATA <- '/home/adam/adam/data/causal_inference/data/processed/guerin_12_24_train.npz'
-PATH_TEST_DATA <- '/home/adam/adam/data/causal_inference/data/processed/guerin_12_24_test.npz'
-PATH_SAVE_RESULTS <- '/home/adam/adam/data/causal_inference/results/old/12h_24h/results_old_BART.csv'
-PATH_SUMMARY <- ''
+PATH_TRAIN_DATA <- '/home/adam/adam/data/causal_inference/data/processed/guerin_2_8_train.npz'
+PATH_TEST_DATA <- '/home/adam/adam/data/causal_inference/data/processed/guerin_2_8_test.npz'
+PATH_SAVE_RESULTS <- '/home/adam/adam/data/causal_inference/results/pf_ratio_2h_8h_manual_outcome/results_BART.csv'
 
-OLD_TRAIN <- '/home/adam/adam/cfrnet/data/bfpguerin_12_24.train.npz'
-OLD_TEST <- '/home/adam/adam/cfrnet/data/bfpguerin_12_24.test.npz'
 ###########################
 ### Set Hyperparameters ###
 ###########################
@@ -119,7 +116,7 @@ run_experiment <- function(path_train_data, path_test_data, n_of_iterations, env
 
     print(iteration)
 
-    train_data <- load_data(path_train_data, np)
+    train_data <- load_data(path_train_data, env_name)
 
     model <- train(y = train_data$y[ ,iteration],
                    t = train_data$t[ ,iteration],
@@ -130,7 +127,7 @@ run_experiment <- function(path_train_data, path_test_data, n_of_iterations, env
                              t = train_data$t[ ,iteration],
                              X = train_data$X[ , ,iteration])
 
-    test_data <- load_data(path_test_data, np)
+    test_data <- load_data(path_test_data, env_name)
 
     result_test <- evaluate(model,
                             y = test_data$y[ ,iteration],
@@ -215,4 +212,4 @@ s_learner_ate <- function (model, X) {
 ### Run the Experiment ###
 ##########################
 
-run_experiment(OLD_TRAIN, OLD_TEST, N_OF_ITERATIONS, ENV_NAME, PATH_SAVE_RESULTS)
+run_experiment(PATH_TRAIN_DATA, PATH_TEST_DATA, N_OF_ITERATIONS, ENV_NAME, PATH_SAVE_RESULTS)
