@@ -92,7 +92,7 @@ Estimating treatment effects from observational data remains a central problem i
 However, it is yet to be established how to utilize those advances
 on real-world medical data in order to provide relevant clinical insights. In particular it is not clear, to what extend new models will outperform traditional methods based on propensity score models and allow for individual treatment effect estimation. 
 
-The goal of the repository is to estimate the average treatment of prone positioning on mechanically ventilated COVID-19 patients. Prone positioning is a commonly used technique for the treatment of severely hypoxemic mechanically ventilated patients with acute respiratory distress syndrome and it’s effectiveness was not yet clinically confirmed, when performed on COVID-19 patients. This provides a direct clinical use case on which various models can be compared. 
+The methods in this repository were employed to estimate the average treatment of prone positioning on mechanically ventilated COVID-19 patients. Prone positioning is a commonly used technique for the treatment of severely hypoxemic mechanically ventilated patients with acute respiratory distress syndrome and it’s effectiveness was not yet clinically confirmed, when performed on COVID-19 patients. This provides a direct clinical use case on which various models can be compared. 
 
 
 ## Data 
@@ -107,9 +107,3 @@ cations, fluid balance, and outcomes. Request to data can be requested through h
 * BART
 * TARNET
 * CFR
-
-
-## Rigorous Evaluation
-Explanation of the rigorous evaluation steps implemented in the experiment . 
-
-
