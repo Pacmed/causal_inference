@@ -3,36 +3,10 @@
 
 import pandas as pd
 
-from data_warehouse_utils.dataloader import DataLoader
-
-COLS_PATIENTS = ['hash_patient_id',
-                 'age',
-                 'bmi',
-                 'gender',
-                 'death_timestamp']
-
-COLS_COMORBIDITIES = ['hash_patient_id',
-                      'chronic_dialysis',
-                      'chronic_renal_insufficiency',
-                      'cirrhosis',
-                      'copd',
-                      'diabetes',
-                      'neoplasm',
-                      'hematologic_malignancy',
-                      'immunodeficiency',
-                      'respiratory_insufficiency',
-                      'cardiovascular_insufficiency',
-                      'acute_kidney_injury']
-
-COLS_ADMISSION = ['hash_patient_id',
-                  'admission_timestamp']
-
-START_OF_SECOND_WAVE = '2020-12-01 00:00:00'
-
-COMORBIDITY_IF_NAN = False
+from causal_inference.make_data.data import *
 
 
-def add_patient_data(dl:DataLoader, df:pd.DataFrame):
+def add_patient_data(dl, df:pd.DataFrame):
     """Loads patient data including comorbidities.
 
     Parameters
@@ -70,12 +44,12 @@ def add_patient_data(dl:DataLoader, df:pd.DataFrame):
         df.loc[died_during_session, 'has_died_during_session'] = True
 
     # Add comorbidities
-    df_comorbidities = dl.get_comorbidities()
+    df_comorbidities = load_comorbidities(dl)
     df_comorbidities = df_comorbidities[COLS_COMORBIDITIES]
     df = pd.merge(df, df_comorbidities, how='left', on='hash_patient_id')
 
     # Add is_second_wave_patient
-    df_admission = dl.get_admissions()
+    df_admission = load_admissions(dl)
     df_admission = df_admission.groupby('hash_patient_id').agg(
         admission_timestamp=pd.NamedAgg(column='admission_timestamp',
                                         aggfunc="min")).\

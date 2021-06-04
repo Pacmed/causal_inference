@@ -8,12 +8,11 @@ from datetime import timedelta
 
 from typing import Optional, List
 
-from data_warehouse_utils.dataloader import DataLoader
-
+from causal_inference.make_data.data import *
 from causal_inference.make_data.parameters import BMI, SOFA, LAB_VALUES, COVARIATES_8h
 
 
-def make_covariates(dl:DataLoader,
+def make_covariates(dl,
                     df:pd.DataFrame,
                     covariates:List[str],
                     interval_start:Optional[int] = 12,
@@ -85,7 +84,7 @@ def make_covariates(dl:DataLoader,
     return df_measurements
 
 
-def __get_measurements(dl:DataLoader,
+def __get_measurements(dl,
                        hash_session_id:str,
                        hash_patient_id:str,
                        start_timestamp:np.datetime64,
@@ -139,14 +138,11 @@ def __get_measurements(dl:DataLoader,
         interval_end = interval_end + timedelta(minutes=30)
 
     ### Load Measurements from the data warehouse ###
-    df_measurements = dl.get_single_timestamp(patients=[hash_patient_id],
-                                              parameters=covariates,
-                                              columns=['pacmed_name',
-                                                       'pacmed_subname',
-                                                       'numerical_value',
-                                                       'effective_timestamp'],
-                                              from_timestamp=interval_start,
-                                              to_timestamp=interval_end)
+    df_measurements = load_data(dl,
+                                hash_patient_id=hash_patient_id,
+                                parameters=covariates,
+                                start_timestamp=interval_start,
+                                end_timestamp=interval_end)
 
     ### Rename covariates and covariates's 'pacmed_name' ###
     if set(['po2_arterial']).issubset(set(covariates)):

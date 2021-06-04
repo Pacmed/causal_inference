@@ -14,6 +14,7 @@ from causal_inference.make_data.make_covariates import make_covariates, construc
 from causal_inference.make_data.make_outcome import make_outcomes
 from causal_inference.make_data.make_medications import get_medications
 from causal_inference.make_data.make_patient_data import add_patient_data
+from causal_inference.make_data.data import *
 
 
 class UseCaseLoader(DataLoader):
@@ -35,7 +36,8 @@ class UseCaseLoader(DataLoader):
         z : None
         """
 
-        self.get_range_measurements(parameters=['position'], columns=COLUMNS_RAW_DATA).to_csv(save_path, index=False)
+        df = load_position_data(dl=self)
+        df.to_csv(save_path, index=False)
 
         return None
 

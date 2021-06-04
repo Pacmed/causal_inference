@@ -14,17 +14,7 @@ import numpy as np
 
 from typing import Optional
 
-
-# CONST
-
-BATCH_COL = 'episode_id' # used to split data into batches and used as a prefix in 'hash_session_id'
-
-DTYPE = {'hash_patient_id': str, 'episode_id': str, 'pacmed_subname': str, 'effective_value': str,
-         'numerical_value': np.float64, 'is_correct_unit_yn': bool, 'unit_name': object, 'hospital': str,
-         'ehr': str}
-
-COLUMNS_RAW_DATA = ['hash_patient_id', 'episode_id', 'start_timestamp', 'end_timestamp', 'pacmed_subname',
-                    'effective_value', 'is_correct_unit_yn', 'hospital', 'ehr']
+from causal_inference.make_data.data import *
 
 
 def make_proning_sessions(path:str, n_of_batches:Optional[str]=None):

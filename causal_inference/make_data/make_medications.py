@@ -6,13 +6,14 @@ import pandas as pd
 from datetime import timedelta
 
 from data_warehouse_utils.dataloader import DataLoader
+from causal_inference.make_data.data import *
 from causal_inference.make_data.medications import *
 
 INTERVAL_START = 4 # hours before proning starts to look for medications
 INTERVAL_END = 2 # hours after proning started to look for medication
 
 
-def get_medications(dl: DataLoader, df: pd.DataFrame):
+def get_medications(dl, df: pd.DataFrame):
     """Adds medication data to the data.
 
     Parameters
@@ -29,13 +30,7 @@ def get_medications(dl: DataLoader, df: pd.DataFrame):
         Data to add the medication data.
     """
 
-    df_medications = dl.get_medications(columns=['hash_patient_id',
-                                                 'pacmed_name',
-                                                 'pacmed_subname',
-                                                 'start_timestamp',
-                                                 'end_timestamp',
-                                                 'total_dose',
-                                                 'dose_unit_name'])
+    df_medications = load_medications(dl)
 
     medications = (df_medications['pacmed_name'].isin(MEDICATIONS)) | \
                   (df_medications['pacmed_subname'].isin(MEDICATIONS))
