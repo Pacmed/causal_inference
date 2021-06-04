@@ -111,17 +111,6 @@ def load_data(dl:DataLoader,
 
     return df
 
-
-columns = ['hash_patient_id', 'pacmed_name', 'numerical_value', 'effective_timestamp']
-from_timestamp = df.start_timestamp.min()
-to_timestamp = df.end_timestamp.max()
-
-df_measurements = dl.get_single_timestamp(patients=patients,
-                                          parameters=parameters,
-                                          columns=columns,
-                                          from_timestamp=from_timestamp,
-                                          to_timestamp=to_timestamp)
-
 def load_medications(dl:DataLoader):
     """Load medications.
 
@@ -131,7 +120,13 @@ def load_medications(dl:DataLoader):
         A DataLoader to load the data from the warehouse.
     """
 
-    return dl.get_comorbidities()
+    return dl.get_medications(columns=['hash_patient_id',
+                                       'pacmed_name',
+                                       'pacmed_subname',
+                                       'start_timestamp',
+                                       'end_timestamp',
+                                       'total_dose',
+                                       'dose_unit_name'])
 
 def load_comorbidities(dl:DataLoader):
     """Load comorbidity data.
