@@ -6,19 +6,11 @@ import numpy as np
 
 from typing import Optional, List
 from datetime import timedelta
-from data_warehouse_utils.dataloader import DataLoader
+
+from causal_inference.make_data.data import *
 
 
-INCLUSION_PARAMETERS = ['fio2', 'peep', 'po2_arterial', 'po2_unspecified', 'po2']
-
-INCLUSION_CRITERIA = ['fio2', 'peep', 'po2']
-
-COLUMNS_SESSIONS = ['hash_session_id', 'hash_patient_id', 'episode_id', 'start_timestamp', 'end_timestamp',
-                    'effective_value', 'is_correct_unit_yn', 'hospital', 'ehr', 'end_timestamp_adjusted_hours',
-                    'duration_hours', 'artificial_session', 'po2', 'peep', 'fio2']
-
-
-def make_artificial_sessions(dl: DataLoader,
+def make_artificial_sessions(dl,
                              df: pd.DataFrame,
                              min_length_of_artificial_session: Optional[int] = 8):
     """Creates artificial supine sessions from supine sessions longer than 'min_length_of_artificial_session'.
@@ -98,7 +90,7 @@ def make_artificial_sessions(dl: DataLoader,
     return df
 
 
-def __split_supine_session(dl:DataLoader, hash_session_id:str, hash_patient_id:str, episode_id:str,
+def __split_supine_session(dl, hash_session_id:str, hash_patient_id:str, episode_id:str,
                            start_timestamp:np.datetime64, end_timestamp:np.datetime64,
                            effective_value:str, is_correct_unit_yn:bool, hospital:str, ehr:str,
                            end_timestamp_adjusted_hours:int, min_length_of_artificial_session:min,
@@ -252,11 +244,11 @@ def __aggfunc_last(x:np.ndarray):
 
     return x
 
-def __load_measurements_to_split_supine_sessions(dl:DataLoader,
-                                               hash_patient_id:object,
-                                               parameters:List[str],
-                                               start_timestamp : np.datetime64,
-                                               end_timestamp : np.datetime64):
+def __load_measurements_to_split_supine_sessions(dl,
+                                                 hash_patient_id:object,
+                                                 parameters:List[str],
+                                                 start_timestamp : np.datetime64,
+                                                 end_timestamp : np.datetime64):
         """Load parameters to split the supine sessions on.
         
         Parameters
@@ -280,14 +272,11 @@ def __load_measurements_to_split_supine_sessions(dl:DataLoader,
 
         # get measurements to split the sessions on // don't load measurements close to the session end
 
-        df = dl.get_single_timestamp(patients=[hash_patient_id],
-                                     parameters=parameters,
-                                     columns=['pacmed_name',
-                                              'pacmed_subname',
-                                              'numerical_value',
-                                              'effective_timestamp'],
-                                     from_timestamp=start_timestamp,
-                                     to_timestamp=end_timestamp)
+        df = load_data(dl=dl,
+                       hash_patient_id=hash_patient_id,
+                       parameters=parameters,
+                       start_timestamp=start_timestamp,
+                       end_timestamp=end_timestamp)
 
         # Group 'po2_arterial' and 'po2_unspecified' together
         if {'po2_arterial'}.issubset(set(parameters)):

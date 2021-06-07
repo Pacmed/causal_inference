@@ -7,7 +7,7 @@ import numpy as np
 
 from datetime import timedelta
 from typing import Optional
-from data_warehouse_utils.dataloader import DataLoader
+from causal_inference.make_data.data import *
 
 EARLY_PRONING_EFFECT = [2, 8]
 LATE_PRONING_EFFECT = [12, 24]
@@ -15,7 +15,7 @@ LATE_PRONING_EFFECT = [12, 24]
 FIO_2_MIN = 21 # Logical minimum for FiO_2 values used for outcome construction
 
 
-def make_outcomes(dl: DataLoader, df: pd.DataFrame, df_measurements: Optional[pd.DataFrame] = None):
+def make_outcomes(dl, df: pd.DataFrame, df_measurements: Optional[pd.DataFrame] = None):
     """This function loads outcome values for each row of the input data.
 
     Two distinct outcomes are loaded. The first outcome corresponds to the interval EARLY_PRONING_EFFECT.
@@ -39,17 +39,16 @@ def make_outcomes(dl: DataLoader, df: pd.DataFrame, df_measurements: Optional[pd
     # Load measurement data
     if not isinstance(df_measurements, pd.DataFrame):
         print("Loading measurement data.")
-        parameters = ['po2_arterial', 'po2_unspecified', 'fio2', 'pao2_over_fio2', 'pao2_unspecified_over_fio2']
         patients = df.hash_patient_id.tolist()
-        columns = ['hash_patient_id', 'pacmed_name', 'numerical_value', 'effective_timestamp']
         from_timestamp = df.start_timestamp.min()
         to_timestamp = df.end_timestamp.max()
 
-        df_measurements = dl.get_single_timestamp(patients=patients,
-                                                  parameters=parameters,
-                                                  columns=columns,
-                                                  from_timestamp=from_timestamp,
-                                                  to_timestamp=to_timestamp)
+        df_measurements = load_data(dl=dl,
+                                    parameters=None,
+                                    columns=None,
+                                    start_timestamp=from_timestamp,
+                                    end_timestamp=to_timestamp,
+                                    outcome_columns=True)
 
 
     if 'pacmed_name' in df_measurements.columns:
