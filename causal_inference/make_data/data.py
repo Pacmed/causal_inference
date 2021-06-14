@@ -1,12 +1,16 @@
-"""This module contains non-public data loading utilities.
+"""This module contains general variable names plus a blueprint for the Dataloader class that needs
+to be defined in order to feed data to the repository. The various functions display what sort of
+methods must be implemented for the Dataloader class.
 """
+
 
 
 import numpy as np
 
 from typing import Optional, List
 
-from data_warehouse_utils.dataloader import DataLoader
+# import here the Dataloader class for your dataset
+# from ... import DataLoader
 
 INCLUSION_PARAMETERS = ['fio2', 'peep', 'po2_arterial', 'po2_unspecified', 'po2']
 
