@@ -1,6 +1,6 @@
 """This module contains general variable names plus a blueprint for the Dataloader class that needs
 to be defined in order to feed data to the repository. The various functions display what sort of
-methods must be implemented for the Dataloader class
+methods must be implemented for the Dataloader class.
 """
 
 
