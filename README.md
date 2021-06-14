@@ -2,7 +2,7 @@
 The repository contains code used by [Pacmed Labs](https://pacmed.ai/nl/labs) to estimate treatment effects from electronic health record data. It allows for easy replication of the experiment reported in:
 * "A pragmatic approach to estimating average treatment
 effects from EHR data: the effect of prone positioning on
-mechanically ventilated COVID-19 patients" (Izdebski et al., 2021)
+mechanically ventilated COVID-19 patients" (Izdebski et al., 2021) (in preparation)
 
 ## Getting Started 
 To install requirements:
@@ -99,6 +99,8 @@ The methods in this repository were employed to estimate the average treatment o
 For the purpose of the observational study we used data collected in the Dutch Data Warehouse (DDW). The DDW is the result of a intensive care unit data sharing collaboration in the Nether-
 lands that was initiated during the COVID-19 pandemic. The DDW includes data on demographics, comorbidities, monitoring and life support devices, laboratory results, clinical observations, medi-
 cations, fluid balance, and outcomes. Request to data can be requested through https://icudata.nl/index-en.html. 
+
+The repository can be customized to be used on any dataset. The script causal_inference/make_data/data.py describes the shape required for a Dataloader class to feed data to the experiments.
 
 ## Used Models
 * Outcome Regressions
