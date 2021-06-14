@@ -65,12 +65,15 @@ python evaluate.py ../causal_inference/model/<config_file> 1
 ```
 
 Note that:
->❗ To run the experiments you need to request access to [data](https://icudata.nl/index-en.html). For a detailed description see below. 
+>❗ To replicate the experiments you need to request access to [data](https://icudata.nl/index-en.html). For a detailed description see below. 
 
 > ✨ To compare any scikit-learn models, simply add them to `batch_of_models':
 ```SCIKIT
 batch_of_models = [OLS(), IPW(), Blocking(), RandomForestRegressor()]
 ```
+
+ ## Running the experiments on your data
+ The repository can be customized to be used on any dataset. The script causal_inference/make_data/data.py describes the shape required for a Dataloader class to feed data to the experiments.
 
   ## Meta
 The project is part of the [Pacmed Labs](https://pacmed.ai/nl/labs) research [agenda](https://pacmed.ai/nl/media/press/pacmed-krijg-sidn-subsidie-onderzoek-causaliteit) and was funded by [SIDNFonds](https://www.sidnfonds.nl/projecten/using-machine-learning-on-observational-data-to-support-treatment-decisions).
@@ -95,12 +98,11 @@ on real-world medical data in order to provide relevant clinical insights. In pa
 The methods in this repository were employed to estimate the average treatment of prone positioning on mechanically ventilated COVID-19 patients. Prone positioning is a commonly used technique for the treatment of severely hypoxemic mechanically ventilated patients with acute respiratory distress syndrome and it’s effectiveness was not yet clinically confirmed, when performed on COVID-19 patients. This provides a direct clinical use case on which various models can be compared. 
 
 
-## Data 
+## Original Data 
 For the purpose of the observational study we used data collected in the Dutch Data Warehouse (DDW). The DDW is the result of a intensive care unit data sharing collaboration in the Nether-
 lands that was initiated during the COVID-19 pandemic. The DDW includes data on demographics, comorbidities, monitoring and life support devices, laboratory results, clinical observations, medi-
 cations, fluid balance, and outcomes. Request to data can be requested through https://icudata.nl/index-en.html. 
 
-The repository can be customized to be used on any dataset. The script causal_inference/make_data/data.py describes the shape required for a Dataloader class to feed data to the experiments.
 
 ## Used Models
 * Outcome Regressions
